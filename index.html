@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+  <meta name="theme-color" content="#0a7e8c" />
+  <meta name="description" content="Gestión de Diálisis Peritoneal - Recetas por especialista" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>Diálisis Peritoneal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    /* ===== RESET Y BASE ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    :root {
+      --primary: #0a7e8c;
+      --primary-dark: #065a66;
+      --primary-light: #e0f2f5;
+      --secondary: #f39c12;
+      --danger: #e74c3c;
+      --success: #27ae60;
+      --gray: #95a5a6;
+      --dark: #2c3e50;
+      --light: #f8f9fa;
+      --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      --radius: 14px;
+      --transition: 0.3s ease;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    html,
+    body {
+      height: 100%;
+      font-family: var(--font);
+      background: #f4f7fb;
+      color: var(--dark);
+      overflow: hidden;
+    }
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 480px;
+      margin: 0 auto;
+      background: #fff;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.06);
+      position: relative;
+      overflow: hidden;
+    }
+    /* ===== HEADER ===== */
+    .app-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 16px 20px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 10;
+      min-height: 64px;
+    }
+    .app-header h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .app-header h1 i {
+      font-size: 1.3rem;
+    }
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .header-actions button {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header-actions button:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+    .online-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #27ae60;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(39, 174, 96, 0.4);
+    }
+    .online-badge i {
+      font-size: 0.6rem;
+    }
+    .online-badge.offline {
+      background: var(--danger);
+      box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
+    }
+    /* ===== CONTENIDO ===== */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 18px 80px;
+      background: #f8fafc;
+      scroll-behavior: smooth;
+    }
+    .main-content::-webkit-scrollbar {
+      width: 4px;
+    }
+    .main-content::-webkit-scrollbar-thumb {
+      background: var(--primary);
+      border-radius: 8px;
+    }
+    /* ===== BOTTOM TABS ===== */
+    .tab-bar {
+      display: flex;
+      background: #fff;
+      border-top: 1px solid #e9edf2;
+      flex-shrink: 0;
+      z-index: 10;
+      padding-bottom: env(safe-area-inset-bottom);
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+    }
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0 6px;
+      font-size: 0.6rem;
+      color: var(--gray);
+      cursor: pointer;
+      transition: var(--transition);
+      border: none;
+      background: transparent;
+      position: relative;
+      gap: 2px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+    .tab-item i {
+      font-size: 1.3rem;
+      transition: var(--transition);
+    }
+    .tab-item span {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .tab-item.active {
+      color: var(--primary);
+    }
+    .tab-item.active i {
+      transform: translateY(-2px);
+    }
+    .tab-item .tab-badge {
+      position: absolute;
+      top: 2px;
+      right: 50%;
+      transform: translateX(calc(50% + 18px));
+      background: var(--danger);
+      color: #fff;
+      font-size: 0.5rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 20px;
+      min-width: 16px;
+      text-align: center;
+    }
+    /* ===== PÁGINAS ===== */
+    .page {
+      display: none;
+      animation: fadeIn 0.25s ease;
+    }
+    .page.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    /* ===== SUB-TABS (Especialistas) ===== */
+    .sub-tab-bar {
+      display: flex;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+      overflow: hidden;
+      border: 1px solid #edf2f7;
+    }
+    .sub-tab-item {
+      flex: 1;
+      padding: 10px 4px;
+      text-align: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--gray);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      transition: var(--transition);
+      border-bottom: 3px solid transparent;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+    .sub-tab-item.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .sub-tab-item i {
+      margin-right: 4px;
+      font-size: 0.8rem;
+    }
+    .sub-page {
+      display: none;
+      animation: fadeIn 0.2s ease;
+    }
+    .sub-page.active {
+      display: block;
+    }
+    /* ===== CARDS ===== */
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px 16px;
+      margin-bottom: 16px;
+      border: 1px solid #edf2f7;
+      transition: var(--transition);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-weight: 600;
+      color: var(--dark);
+      font-size: 0.95rem;
+    }
+    .card-header i {
+      color: var(--primary);
+      margin-right: 6px;
+    }
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-actions button {
+      background: none;
+      border: none;
+      color: var(--gray);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      transition: var(--transition);
+    }
+    .card-actions button:hover {
+      background: #f0f0f0;
+      color: var(--dark);
+    }
+    /* ===== FORMULARIOS ===== */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--dark);
+      margin-bottom: 4px;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+    .form-group .label-hint {
+      font-size: 0.65rem;
+      color: var(--gray);
+      font-weight: 400;
+      text-transform: none;
+    }
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      transition: var(--transition);
+      background: #fafcfd;
+      font-family: var(--font);
+      color: var(--dark);
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(10, 126, 140, 0.15);
+      background: #fff;
+    }
+    .form-control::placeholder {
+      color: #b0b8c4;
+    }
+    select.form-control {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2395a5a6' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .form-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+      font-family: var(--font);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(10, 126, 140, 0.3);
+    }
+    .btn-primary:active {
+      transform: scale(0.97);
+    }
+    .btn-secondary {
+      background: #e9edf2;
+      color: var(--dark);
+    }
+    .btn-secondary:hover {
+      background: #d5dce4;
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: #c0392b;
+    }
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+    .btn-success:hover {
+      background: #1e8449;
+    }
+    .btn-block {
+      width: 100%;
+      justify-content: center;
+    }
+    .btn-sm {
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      border-radius: 8px;
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid var(--primary);
+      color: var(--primary);
+    }
+    .btn-outline:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+    /* ===== LISTAS ===== */
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f4f8;
+      gap: 10px;
+    }
+    .list-item:last-child {
+      border-bottom: none;
+    }
+    .list-item .info {
+      flex: 1;
+      min-width: 0;
+    }
+    .list-item .info .title {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .list-item .info .sub {
+      font-size: 0.75rem;
+      color: var(--gray);
+      margin-top: 2px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+    }
+    .list-item .info .sub .tag {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      padding: 0 10px;
+      border-radius: 20px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .list-item .info .sub .badge-time {
+      background: #fef9e7;
+      color: #7d6608;
+      padding: 0 8px;
+      border-radius: 20px;
+      font-size: 0.6rem;
+      font-weight: 600;
+    }
+    .list-item .info .sub .vital {
+      font-weight: 500;
+      color: var(--dark);
+    }
+    .list-item .actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .list-item .actions button {
+      background: none;
+      border: none;
+      color: var(--gray);
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+      transition: var(--transition);
+      font-size: 0.9rem;
+    }
+    .list-item .actions button:hover {
+      background: #f0f0f0;
+      color: var(--dark);
+    }
+    .list-item .actions .del:hover {
+      color: var(--danger);
+      background: #fde8e8;
+    }
+    /* ===== ALERTAS ===== */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-left: 4px solid;
+    }
+    .alert-warning {
+      background: #fef9e7;
+      border-color: var(--secondary);
+      color: #7d6608;
+    }
+    .alert-danger {
+      background: #fdedec;
+      border-color: var(--danger);
+      color: #922b21;
+    }
+    .alert-success {
+      background: #eafaf1;
+      border-color: var(--success);
+      color: #1a6e3a;
+    }
+    .alert-info {
+      background: #eaf2f8;
+      border-color: #3498db;
+      color: #1a5276;
+    }
+    .alert i {
+      font-size: 1.2rem;
+    }
+    /* ===== ESTADÍSTICAS ===== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 10px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      border: 1px solid #edf2f7;
+    }
+    .stat-card .number {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .stat-card .label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      color: var(--gray);
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      margin-top: 2px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 30px 10px;
+      color: var(--gray);
+    }
+    .empty-state i {
+      font-size: 2.8rem;
+      opacity: 0.3;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .empty-state p {
+      font-size: 0.9rem;
+    }
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      padding: 20px;
+    }
+    .modal-overlay.open {
+      display: flex;
+    }
+    .modal {
+      background: #fff;
+      border-radius: var(--radius);
+      max-width: 420px;
+      width: 100%;
+      padding: 24px 20px 20px;
+      max-height: 90dvh;
+      overflow-y: auto;
+      animation: modalIn 0.25s ease;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    }
+    @keyframes modalIn {
+      from {
+        opacity: 0;
+        transform: scale(0.94) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    .modal h2 {
+      font-size: 1.2rem;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .modal h2 i {
+      color: var(--primary);
+    }
+    .modal .close-modal {
+      float: right;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      color: var(--gray);
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .modal .close-modal:hover {
+      color: var(--dark);
+    }
+    /* ===== TOAST ===== */
+    .toast-container {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      max-width: 400px;
+      width: 90%;
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--dark);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      pointer-events: auto;
+      animation: toastIn 0.3s ease;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .toast.success {
+      background: var(--success);
+    }
+    .toast.error {
+      background: var(--danger);
+    }
+    .toast.warning {
+      background: var(--secondary);
+    }
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 420px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+      .form-row-3 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .app-header h1 {
+        font-size: 1rem;
+      }
+      .tab-item i {
+        font-size: 1.1rem;
+      }
+      .tab-item span {
+        font-size: 0.5rem;
+      }
+      .sub-tab-item {
+        font-size: 0.55rem;
+        padding: 8px 2px;
+      }
+    }
+    .main-content {
+      scrollbar-width: thin;
+    }
+    .telegram-float {
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      background: #0088cc;
+      color: #fff;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      box-shadow: 0 4px 20px rgba(0, 136, 204, 0.4);
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      z-index: 50;
+    }
+    .telegram-float:hover {
+      transform: scale(1.06);
+      box-shadow: 0 6px 28px rgba(0, 136, 204, 0.5);
+    }
+    .telegram-float:active {
+      transform: scale(0.94);
+    }
+    @media (min-width: 500px) {
+      .telegram-float {
+        right: calc(50% - 220px);
+      }
+    }
+    /* ===== INFO BOLSA ===== */
+    .bag-info {
+      background: var(--primary-light);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      font-size: 0.85rem;
+      border-left: 4px solid var(--primary);
+    }
+    .bag-info strong {
+      color: var(--primary-dark);
+    }
+    .bag-info .time-range {
+      display: inline-block;
+      background: #fff;
+      padding: 2px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-top: 4px;
+    }
+    .ultrafiltration-result {
+      background: #eafaf1;
+      border-left: 4px solid var(--success);
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-top: 6px;
+      font-weight: 600;
+      color: var(--dark);
+    }
+    .ultrafiltration-result .value {
+      color: var(--success);
+      font-size: 1.1rem;
+    }
+    .ultrafiltration-result .value.negative {
+      color: var(--danger);
+    }
+    /* ===== IA ===== */
+    .ia-container {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .ia-container input {
+      flex: 1;
+    }
+    .ia-container button {
+      white-space: nowrap;
+    }
+    .ia-response {
+      margin-top: 10px;
+      padding: 12px;
+      background: #f0f4f8;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      color: var(--dark);
+      min-height: 50px;
+    }
+    .mic-btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mic-btn:hover {
+      background: var(--primary-dark);
+    }
+    .mic-btn.recording {
+      background: var(--danger);
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app">
+    <!-- HEADER -->
+    <header class="app-header">
+      <h1><i class="fas fa-kidney"></i> Diálisis</h1>
+      <div class="header-actions">
+        <span class="online-badge" id="onlineBadge"><i class="fas fa-circle"></i> Online</span>
+        <button id="btnTelegramConfig" title="Configurar Telegram"><i class="fab fa-telegram-plane"></i></button>
+        <button id="btnRefresh" title="Actualizar"><i class="fas fa-sync-alt"></i></button>
+      </div>
+    </header>
+
+    <!-- CONTENIDO -->
+    <div class="main-content" id="mainContent">
+
+      <!-- ========== DASHBOARD ========== -->
+      <div class="page active" id="pageDashboard">
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card"><div class="number" id="statDialisis">0</div><div class="label">Diálisis hoy</div></div>
+          <div class="stat-card"><div class="number" id="statMedicamentos">0</div><div class="label">Medicamentos</div></div>
+          <div class="stat-card"><div class="number" id="statAlertas">0</div><div class="label">Alertas stock</div></div>
+        </div>
+        <div id="alertsContainer"></div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fas fa-clock"></i> Última diálisis</span>
+            <button class="btn btn-sm btn-primary" onclick="navigateTo('dialisis')">+ Registrar</button>
+          </div>
+          <div id="ultimaDialisis">No hay registros</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="fas fa-pills"></i> Medicamentos con stock bajo</span></div>
+          <div id="stockBajoList">Sin alertas de stock</div>
+        </div>
+        <!-- Asistente IA -->
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="fas fa-robot"></i> Asistente IA (Groq)</span></div>
+          <div class="ia-container">
+            <input type="text" id="iaPregunta" class="form-control" placeholder="Ej: ¿A qué hora toca la siguiente diálisis?" />
+            <button class="mic-btn" id="micBtn" title="Preguntar con voz"><i class="fas fa-microphone"></i></button>
+          </div>
+          <button class="btn btn-primary btn-block" id="btnPreguntarIA" style="margin-top:8px;"><i class="fas fa-paper-plane"></i> Preguntar</button>
+          <div class="ia-response" id="iaRespuesta">Espera tu pregunta...</div>
+        </div>
+      </div>
+
+      <!-- ========== DIÁLISIS ========== -->
+      <div class="page" id="pageDialisis">
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="fas fa-plus-circle"></i> Registrar diálisis</span></div>
+          <form id="formDialisis" autocomplete="off">
+            <div class="form-row">
+              <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="dialisisFecha" required /></div>
+              <div class="form-group"><label>Hora</label><input type="time" class="form-control" id="dialisisHora" required /></div>
+            </div>
+            <div class="form-group">
+              <label>Tipo de bolsa</label>
+              <select class="form-control" id="dialisisBolsa" required>
+                <option value="1.5%">1.5% (Amarilla) - 4-6h</option>
+                <option value="2.5%">2.5% (Verde) - 6-8h</option>
+                <option value="4.25%">4.25% (Roja) - 8-12h</option>
+                <option value="Extraneal">Extraneal (Icodextrina)</option>
+                <option value="Nutrineal">Nutrineal (Aminoácidos)</option>
+                <option value="Otra">Otra</option>
+              </select>
+            </div>
+            <div class="bag-info">
+              <i class="fas fa-clock"></i> <strong>Próxima diálisis:</strong>
+              <span id="nextDialysisTime">Selecciona una bolsa para ver el rango</span>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Volumen de infusión <span class="label-hint">(ml)</span></label><input type="number" class="form-control" id="dialisisInfusion" placeholder="2000" value="2000" min="0" step="50" required /></div>
+              <div class="form-group"><label>Volumen drenado <span class="label-hint">(ml)</span></label><input type="number" class="form-control" id="dialisisMl" placeholder="Ej: 2500" min="0" step="50" required /></div>
+            </div>
+            <div class="ultrafiltration-result">
+              <i class="fas fa-water"></i> Ultrafiltración: <span class="value" id="ufValue">0</span> ml
+              <span style="font-weight:400;font-size:0.75rem;color:var(--gray);display:block;margin-top:2px;">(Drenado - Infusión)</span>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Presión sistólica <span class="label-hint">(mmHg)</span></label><input type="number" class="form-control" id="dialisisPresionSis" placeholder="120" min="0" step="1" /></div>
+              <div class="form-group"><label>Presión diastólica <span class="label-hint">(mmHg)</span></label><input type="number" class="form-control" id="dialisisPresionDia" placeholder="80" min="0" step="1" /></div>
+            </div>
+            <div class="form-group"><label>Glucosa <span class="label-hint">(mg/dL)</span></label><input type="number" class="form-control" id="dialisisGlucosa" placeholder="Ej: 110" min="0" step="1" /></div>
+            <div class="form-group"><label>Notas <span class="label-hint">(opcional)</span></label><input type="text" class="form-control" id="dialisisNotas" placeholder="Observaciones..." /></div>
+            <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Guardar diálisis</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="fas fa-history"></i> Historial</span><button class="btn btn-sm btn-secondary" id="btnClearDialisis">Limpiar</button></div>
+          <div id="historialDialisis">No hay registros</div>
+        </div>
+      </div>
+
+      <!-- ========== RECETAS ========== -->
+      <div class="page" id="pageRecetas">
+        <div class="sub-tab-bar" id="subTabBar">
+          <button class="sub-tab-item active" data-specialty="angiologia"><i class="fas fa-heart"></i> Angiólogo</button>
+          <button class="sub-tab-item" data-specialty="nutriologia"><i class="fas fa-apple-alt"></i> Nutriólogo</button>
+          <button class="sub-tab-item" data-specialty="nefrologia"><i class="fas fa-kidney"></i> Nefrólogo</button>
+          <button class="sub-tab-item" data-specialty="medicina_interna"><i class="fas fa-stethoscope"></i> M. Interna</button>
+        </div>
+        <div id="subPagesContainer">
+          <!-- Angiología -->
+          <div class="sub-page active" data-specialty="angiologia">
+            <div class="card doctor-profile">
+              <div class="card-header">
+                <span class="card-title"><i class="fas fa-user-md"></i> <span class="doc-name-display">Angiólogo</span></span>
+                <button class="btn btn-sm btn-secondary edit-doctor-btn" data-specialty="angiologia">Editar perfil</button>
+              </div>
+              <div class="doc-receta-display" style="font-size:0.85rem;color:var(--gray);margin-bottom:10px;">📋 <span>Sin receta registrada</span></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title"><i class="fas fa-prescription-bottle"></i> Agregar medicamento</span></div>
+              <form class="formMedicamentoEspecialidad" data-specialty="angiologia">
+                <div class="form-group"><label>Nombre</label><input type="text" class="form-control medNombre" placeholder="Ej: Losartán" required /></div>
+                <div class="form-row">
+                  <div class="form-group"><label>Pastillas/caja</label><input type="number" class="form-control medPillsBox" placeholder="30" min="1" required /></div>
+                  <div class="form-group"><label>Stock actual</label><input type="number" class="form-control medStock" placeholder="30" min="0" required /></div>
+                </div>
+                <div class="form-group">
+                  <label>Frecuencia</label>
+                  <select class="form-control medFrecuencia" required>
+                    <option value="8h">Cada 8h</option><option value="12h">Cada 12h</option><option value="24h">Cada 24h</option>
+                    <option value="6h">Cada 6h</option><option value="4h">Cada 4h</option><option value="48h">Cada 48h</option>
+                    <option value="semanal">Semanal</option><option value="otra">Otra</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>Dosis (mg)</label><input type="text" class="form-control medDosis" placeholder="Ej: 50mg" /></div>
+                  <div class="form-group"><label>Vía oral (ml)</label><input type="number" class="form-control medOralMl" placeholder="ml" min="0" step="0.5" /></div>
+                </div>
+                <div class="form-group"><label>Alerta cuando queden</label><input type="number" class="form-control medUmbral" placeholder="5" min="1" value="5" required /></div>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-plus"></i> Agregar</button>
+              </form>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title"><i class="fas fa-list"></i> Medicamentos prescritos</span></div>
+              <div class="listaMedicamentosEspecialidad" data-specialty="angiologia">No hay medicamentos registrados.</div>
+            </div>
+          </div>
+          <!-- Nutriología -->
+          <div class="sub-page" data-specialty="nutriologia">
+            <div class="card doctor-profile">
+              <div class="card-header">
+                <span class="card-title"><i class="fas fa-user-md"></i> <span class="doc-name-display">Nutriólogo</span></span>
+                <button class="btn btn-sm btn-secondary edit-doctor-btn" data-specialty="nutriologia">Editar perfil</button>
+              </div>
+              <div class="doc-receta-display" style="font-size:0.85rem;color:var(--gray);margin-bottom:10px;">📋 <span>Sin receta registrada</span></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title"><i class="fas fa-prescription-bottle"></i> Agregar medicamento</span></div>
+              <form class="formMedicamentoEspecialidad" data-specialty="nutriologia">
+                <div class="form-group"><label>Nombre</label><input type="text" class="form-control medNombre" placeholder="Ej: Losartán" required /></div>
+                <div class="form-row">
+                  <div class="form-group"><label>Pastillas/caja</label><input type="number" class="form-control medPillsBox" placeholder="30" min="1" required /></div>
+                  <div class="form-group"><label>Stock actual</label><input type="number" class="form-control medStock" placeholder="30" min="0" required /></div>
+                </div>
+                <div class="form-group">
+                  <label>Frecuencia</label>
+                  <select class="form-control medFrecuencia" required>
+                    <option value="8h">Cada 8h</option><option value="12h">Cada 12h</option><option value="24h">Cada 24h</option>
+                    <option value="6h">Cada 6h</option><option value="4h">Cada 4h</option><option value="48h">Cada 48h</option>
+                    <option value="semanal">Semanal</option><option value="otra">Otra</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>Dosis (mg)</label><input type="text" class="form-control medDosis" placeholder="Ej: 50mg" /></div>
+                  <div class="form-group"><label>Vía oral (ml)</label><input type="number" class="form-control medOralMl" placeholder="ml" min="0" step="0.5" /></div>
+                </div>
+                <div class="form-group"><label>Alerta cuando queden</label><input type="number" class="form-control medUmbral" placeholder="5" min="1" value="5" required /></div>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-plus"></i> Agregar</button>
+              </form>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title"><i class="fas fa-list"></i> Medicamentos prescritos</span></div>
+              <div class="listaMedicamentosEspecialidad" data-specialty="nutriologia">No hay medicamentos registrados.</div>
+            </div>
+          </div>
+          <!-- Nefrología -->
+          <div class="sub-page" data-specialty="nefrologia">
+            <div class="card doctor-profile">
+              <div class="card-header">
+                <span class="card-title"><i class="fas fa-user-md"></i> <span class="doc-name-display">Nefrólogo</span></span>
+                <button class="btn btn-sm btn-secondary edit-doctor-btn" data-specialty="nefrologia">Editar perfil</button>
+              </div>
+              <div class="doc-receta-display" style="font-size:0.85rem;color:var(--gray);margin-bottom:10px;">📋 <span>Sin receta registrada</span></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title"><i class="fas fa-prescription-bottle"></i> Agregar medicamento</span></div>
+              <form class="formMedicamentoEspecialidad" data-specialty="nefrologia">
+                <div class="form-group"><label>Nombre</label><input type="text" class="form-control medNombre" placeholder="Ej: Losartán" required /></div>
+                <div class="form-row">
+                  <div class="form-group"><label>Pastillas/caja</label><input type="number" class="form-control medPillsBox" placeholder="30" min="1" required /></div>
+                  <div class="form-group"><label>Stock actual</label><input type="number" class="form-control medStock" placeholder="30" min="0" required /></div>
+                </div>
+                <div class="form-group">
+                  <label>Frecuencia</label>
+                  <select class="form-control medFrecuencia" required>
+                    <option value="8h">Cada 8h</option><option value="12h">Cada 12h</option><option value="24h">Cada 24h</option>
+                    <option value="6h">Cada 6h</option><option value="4h">Cada 4h</option><option value="48h">Cada 48h</option>
+                    <option value="semanal">Semanal</option><option value="otra">Otra</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>Dosis (mg)</label><input type="text" class="form-control medDosis" placeholder="Ej: 50mg" /></div>
+                  <div class="form-group"><label>Vía oral (ml)</label><input type="number" class="form-control medOralMl" placeholder="ml" min="0" step="0.5" /></div>
+                </div>
+                <div class="form-group"><label>Alerta cuando queden</label><input type="number" class="form-control medUmbral" placeholder="5" min="1" value="5" required /></div>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-plus"></i> Agregar</button>
+              </form>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title"><i class="fas fa-list"></i> Medicamentos prescritos</span></div>
+              <div class="listaMedicamentosEspecialidad" data-specialty="nefrologia">No hay medicamentos registrados.</div>
+            </div>
+          </div>
+          <!-- Medicina Interna -->
+          <div class="sub-page" data-specialty="medicina_interna">
+            <div class="card doctor-profile">
+              <div class="card-header">
+                <span class="card-title"><i class="fas fa-user-md"></i> <span class="doc-name-display">Medicina Interna</span></span>
+                <button class="btn btn-sm btn-secondary edit-doctor-btn" data-specialty="medicina_interna">Editar perfil</button>
+              </div>
+              <div class="doc-receta-display" style="font-size:0.85rem;color:var(--gray);margin-bottom:10px;">📋 <span>Sin receta registrada</span></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title"><i class="fas fa-prescription-bottle"></i> Agregar medicamento</span></div>
+              <form class="formMedicamentoEspecialidad" data-specialty="medicina_interna">
+                <div class="form-group"><label>Nombre</label><input type="text" class="form-control medNombre" placeholder="Ej: Losartán" required /></div>
+                <div class="form-row">
+                  <div class="form-group"><label>Pastillas/caja</label><input type="number" class="form-control medPillsBox" placeholder="30" min="1" required /></div>
+                  <div class="form-group"><label>Stock actual</label><input type="number" class="form-control medStock" placeholder="30" min="0" required /></div>
+                </div>
+                <div class="form-group">
+                  <label>Frecuencia</label>
+                  <select class="form-control medFrecuencia" required>
+                    <option value="8h">Cada 8h</option><option value="12h">Cada 12h</option><option value="24h">Cada 24h</option>
+                    <option value="6h">Cada 6h</option><option value="4h">Cada 4h</option><option value="48h">Cada 48h</option>
+                    <option value="semanal">Semanal</option><option value="otra">Otra</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>Dosis (mg)</label><input type="text" class="form-control medDosis" placeholder="Ej: 50mg" /></div>
+                  <div class="form-group"><label>Vía oral (ml)</label><input type="number" class="form-control medOralMl" placeholder="ml" min="0" step="0.5" /></div>
+                </div>
+                <div class="form-group"><label>Alerta cuando queden</label><input type="number" class="form-control medUmbral" placeholder="5" min="1" value="5" required /></div>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-plus"></i> Agregar</button>
+              </form>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title"><i class="fas fa-list"></i> Medicamentos prescritos</span></div>
+              <div class="listaMedicamentosEspecialidad" data-specialty="medicina_interna">No hay medicamentos registrados.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== CONFIG ========== -->
+      <div class="page" id="pageConfig">
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="fab fa-telegram"></i> Telegram</span></div>
+          <form id="formTelegram">
+            <div class="form-group"><label>Bot Token</label><input type="text" class="form-control" id="tgToken" placeholder="123456:ABC-DEF..." /></div>
+            <div class="form-group"><label>Chat ID</label><input type="text" class="form-control" id="tgChatId" placeholder="123456789" /></div>
+            <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Guardar</button>
+            <button type="button" class="btn btn-secondary btn-block" id="btnTestTelegram" style="margin-top:8px;"><i class="fas fa-paper-plane"></i> Probar</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="fas fa-database"></i> Datos</span></div>
+          <button class="btn btn-secondary btn-block" id="btnExportarDatos"><i class="fas fa-download"></i> Exportar JSON</button>
+          <button class="btn btn-secondary btn-block" style="margin-top:8px;" id="btnImportarDatos"><i class="fas fa-upload"></i> Importar JSON</button>
+          <input type="file" id="fileInput" accept=".json" style="display:none;" />
+          <button class="btn btn-danger btn-block" style="margin-top:12px;" id="btnBorrarTodo"><i class="fas fa-trash"></i> Borrar todos los datos</button>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Clave Groq (IA)</span></div>
+          <div class="form-group">
+            <label>API Key Groq</label>
+            <input type="password" class="form-control" id="groqApiKey" placeholder="sk-..." />
+            <small style="color:var(--gray);">Obtén tu clave en console.groq.com</small>
+          </div>
+          <button class="btn btn-primary btn-block" id="btnGuardarGroq"><i class="fas fa-save"></i> Guardar clave</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BOTTOM TABS -->
+    <nav class="tab-bar" id="tabBar">
+      <button class="tab-item active" data-tab="dashboard"><i class="fas fa-home"></i><span>Inicio</span></button>
+      <button class="tab-item" data-tab="dialisis"><i class="fas fa-syringe"></i><span>Diálisis</span></button>
+      <button class="tab-item" data-tab="recetas"><i class="fas fa-prescription"></i><span>Recetas</span><span class="tab-badge" id="medBadge" style="display:none;">0</span></button>
+      <button class="tab-item" data-tab="config"><i class="fas fa-cog"></i><span>Config</span></button>
+    </nav>
+
+    <button class="telegram-float" id="btnTelegramFloat" title="Enviar reporte a Telegram"><i class="fab fa-telegram-plane"></i></button>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent">
+      <button class="close-modal" id="modalClose">&times;</button>
+      <h2 id="modalTitle"><i class="fas fa-edit"></i> <span id="modalTitleText">Editar</span></h2>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // ============================================================
+    //  CONFIGURACIÓN DE FIREBASE (¡CAMBIAR POR TUS DATOS!)
+    // ============================================================
+    const firebaseConfig = {
+      apiKey: "TU_API_KEY",
+      authDomain: "TU_PROYECTO.firebaseapp.com",
+      projectId: "TU_PROYECTO",
+      storageBucket: "TU_PROYECTO.appspot.com",
+      messagingSenderId: "TU_SENDER_ID",
+      appId: "TU_APP_ID"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ============================================================
+    //  ESTADO DE LA APLICACIÓN
+    // ============================================================
+    let state = {
+      dialisis: [],
+      medicamentos: [],
+      doctores: {
+        angiologia: { nombre: 'Angiólogo', especialidad: 'Angiología', receta: '' },
+        nutriologia: { nombre: 'Nutriólogo', especialidad: 'Nutriología', receta: '' },
+        nefrologia: { nombre: 'Nefrólogo', especialidad: 'Nefrología', receta: '' },
+        medicina_interna: { nombre: 'Medicina Interna', especialidad: 'Medicina Interna', receta: '' }
+      }
+    };
+
+    let tgSettings = { token: '', chatId: '' };
+    let groqApiKey = '';
+
+    // ============================================================
+    //  FUNCIONES DE PERSISTENCIA (Firestore)
+    // ============================================================
+    const USUARIO_ID = 'paciente1'; // Cambia si quieres múltiples usuarios
+
+    async function cargarDesdeFirebase() {
+      try {
+        const doc = await db.collection('pacientes').doc(USUARIO_ID).get();
+        if (doc.exists) {
+          const data = doc.data();
+          state.dialisis = data.dialisis || [];
+          state.medicamentos = data.medicamentos || [];
+          if (data.doctores) state.doctores = data.doctores;
+          // Migrar campos faltantes
+          state.dialisis.forEach(d => {
+            if (d.infusion_ml === undefined) d.infusion_ml = 2000;
+            if (d.ultrafiltracion === undefined) d.ultrafiltracion = (d.ml || 0) - (d.infusion_ml || 2000);
+          });
+          // Cargar Telegram y Groq desde localStorage (no en Firestore por seguridad)
+          cargarSettingsLocales();
+          return true;
+        } else {
+          // Si no existe, creamos un documento vacío
+          await db.collection('pacientes').doc(USUARIO_ID).set({
+            dialisis: [],
+            medicamentos: [],
+            doctores: state.doctores
+          });
+          return true;
+        }
+      } catch (e) {
+        console.error('Error al cargar desde Firestore:', e);
+        // Fallback: intentar cargar desde localStorage
+        cargarDesdeLocalStorage();
+        return false;
+      }
+    }
+
+    async function guardarEnFirebase() {
+      try {
+        await db.collection('pacientes').doc(USUARIO_ID).set({
+          dialisis: state.dialisis,
+          medicamentos: state.medicamentos,
+          doctores: state.doctores
+        }, { merge: true });
+        actualizarBadgeOnline(true);
+        return true;
+      } catch (e) {
+        console.error('Error al guardar en Firestore:', e);
+        actualizarBadgeOnline(false);
+        return false;
+      }
+    }
+
+    // Fallback a localStorage para cuando no hay conexión
+    function cargarDesdeLocalStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          state.dialisis = parsed.dialisis || [];
+          state.medicamentos = parsed.medicamentos || [];
+          if (parsed.doctores) state.doctores = parsed.doctores;
+        }
+      } catch (e) { console.warn('Error cargando localStorage', e); }
+    }
+
+    function guardarEnLocalStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) { console.warn('Error guardando localStorage', e); }
+    }
+
+    const STORAGE_KEY = 'dialisisPeritonealData';
+
+    function cargarSettingsLocales() {
+      try {
+        const raw = localStorage.getItem(TG_SETTINGS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          tgSettings = parsed;
+          $('#tgToken').value = parsed.token || '';
+          $('#tgChatId').value = parsed.chatId || '';
+        }
+        const groqRaw = localStorage.getItem('groqApiKey');
+        if (groqRaw) {
+          groqApiKey = groqRaw;
+          $('#groqApiKey').value = groqApiKey;
+        }
+      } catch (e) { console.warn('Error cargando settings', e); }
+    }
+
+    function guardarSettingsLocales() {
+      localStorage.setItem(TG_SETTINGS_KEY, JSON.stringify(tgSettings));
+      localStorage.setItem('groqApiKey', groqApiKey);
+    }
+
+    const TG_SETTINGS_KEY = 'telegramSettings';
+
+    // ============================================================
+    //  BADGE ONLINE / OFFLINE
+    // ============================================================
+    function actualizarBadgeOnline(online) {
+      const badge = $('#onlineBadge');
+      if (online) {
+        badge.className = 'online-badge';
+        badge.innerHTML = '<i class="fas fa-circle"></i> Online';
+      } else {
+        badge.className = 'online-badge offline';
+        badge.innerHTML = '<i class="fas fa-circle"></i> Offline';
+      }
+    }
+
+    // ============================================================
+    //  DOM REFS Y TOAST
+    // ============================================================
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => document.querySelectorAll(s);
+
+    function showToast(message, type = 'info', duration = 3000) {
+      const container = $('#toastContainer');
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle' };
+      el.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${message}`;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(10px) scale(0.95)';
+        setTimeout(() => el.remove(), 300);
+      }, duration);
+    }
+
+    // ============================================================
+    //  MODAL
+    // ============================================================
+    function openModal(title, html) {
+      $('#modalTitleText').textContent = title;
+      $('#modalBody').innerHTML = html;
+      $('#modalOverlay').classList.add('open');
+    }
+    function closeModal() { $('#modalOverlay').classList.remove('open'); }
+    $('#modalClose').addEventListener('click', closeModal);
+    $('#modalOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
+
+    // ============================================================
+    //  UTILS
+    // ============================================================
+    function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+    function formatDate(d) { const dt = new Date(d); return dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit',
+        year: 'numeric' }); }
+    function todayStr() { return new Date().toISOString().slice(0, 10); }
+    function getTodayDialisis() { return state.dialisis.filter(d => d.fecha === todayStr()); }
+    function getLowStockMeds() { return state.medicamentos.filter(m => m.stock <= m.umbral); }
+    function getMedsBySpecialty(specialty) { return state.medicamentos.filter(m => m.specialty === specialty); }
+
+    function getBagInfo(bolsa) {
+      const map = {
+        '1.5%': { rango: '4 a 6 horas', color: 'Amarilla' },
+        '2.5%': { rango: '6 a 8 horas', color: 'Verde' },
+        '4.25%': { rango: '8 a 12 horas', color: 'Roja' },
+        'Extraneal': { rango: 'hasta 12-16 horas', color: 'Icodextrina' },
+        'Nutrineal': { rango: '4 a 6 horas', color: 'Aminoácidos' },
+        'Otra': { rango: 'consultar con médico', color: '' }
+      };
+      return map[bolsa] || { rango: 'consultar con médico', color: '' };
+    }
+
+    // ============================================================
+    //  NAVEGACIÓN
+    // ============================================================
+    function navigateTo(tabId) {
+      $$('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+      $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page' + tabId.charAt(0).toUpperCase() + tabId.slice(
+        1)));
+      document.getElementById('mainContent').scrollTop = 0;
+      if (tabId === 'dashboard') renderDashboard();
+      if (tabId === 'dialisis') renderDialisisHistorial();
+      if (tabId === 'recetas') {
+        updateMedBadge();
+        const activeSub = document.querySelector('.sub-tab-item.active');
+        if (activeSub) renderSubPage(activeSub.dataset.specialty);
+      }
+    }
+
+    // ============================================================
+    //  RENDER: DASHBOARD
+    // ============================================================
+    function renderDashboard() {
+      const hoy = getTodayDialisis();
+      $('#statDialisis').textContent = hoy.length;
+      $('#statMedicamentos').textContent = state.medicamentos.length;
+      const low = getLowStockMeds();
+      $('#statAlertas').textContent = low.length;
+
+      const ult = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
+      const elUlt = $('#ultimaDialisis');
+      if (ult) {
+        const uf = (ult.ml || 0) - (ult.infusion_ml || 2000);
+        const bagInfo = getBagInfo(ult.bolsa);
+        elUlt.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;">
+            <div><strong>${formatDate(ult.fecha)}</strong> ${ult.hora} <span style="display:inline-block;background:var(--primary-light);color:var(--primary-dark);padding:0 10px;border-radius:20px;font-size:0.7rem;margin-left:4px;">${ult.bolsa}</span></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:0.8rem;color:var(--gray);margin-top:4px;">
+            <span>💧 Drenado: <strong>${ult.ml} ml</strong></span>
+            <span>⏳ Infusión: <strong>${ult.infusion_ml || 2000} ml</strong></span>
+            <span style="font-weight:600;color:${uf >= 0 ? 'var(--success)' : 'var(--danger)'};">📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml</span>
+            ${ult.presion_sis ? `<span>❤️ ${ult.presion_sis}/${ult.presion_dia || '?'} mmHg</span>` : ''}
+            ${ult.glucosa ? `<span>🩸 ${ult.glucosa} mg/dL</span>` : ''}
+          </div>
+          <div style="font-size:0.75rem;color:var(--primary-dark);margin-top:4px;background:var(--primary-light);padding:4px 12px;border-radius:20px;display:inline-block;">⏰ Próxima: ${bagInfo.rango}</div>
+          ${ult.notas ? `<div style="font-size:0.75rem;color:var(--gray);margin-top:4px;">📝 ${ult.notas}</div>` : ''}
+        `;
+      } else {
+        elUlt.innerHTML = '<div class="empty-state"><i class="fas fa-clock"></i><p>Sin registros de diálisis</p></div>';
+      }
+
+      const elStock = $('#stockBajoList');
+      if (low.length === 0) {
+        elStock.innerHTML =
+          '<div style="color:var(--gray);font-size:0.85rem;padding:8px 0;">✅ Todos los medicamentos tienen stock suficiente</div>';
+      } else {
+        elStock.innerHTML = low.map(m => `
+          <div class="list-item">
+            <div class="info">
+              <div class="title">${m.nombre} <span style="font-weight:400;font-size:0.7rem;color:var(--gray);">(${m.specialty})</span></div>
+              <div class="sub">Stock: <strong style="color:var(--danger);">${m.stock}</strong> / ${m.pillsBox} · Umbral: ${m.umbral}</div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="editMedicamento('${m.id}')">+ Stock</button>
+          </div>
+        `).join('');
+      }
+
+      const alertsContainer = $('#alertsContainer');
+      const allAlerts = [];
+      low.forEach(m => {
+        allAlerts.push({ type: 'warning', msg: `⚠️ Stock bajo de <strong>${m.nombre}</strong> (${m.specialty}): quedan ${m.stock}` });
+      });
+      if (hoy.length === 0) {
+        allAlerts.push({ type: 'info', msg: '📋 No has registrado diálisis hoy. ¡Regístrala!' });
+      } else {
+        const now = new Date();
+        hoy.forEach(d => {
+          const dialisisTime = new Date(`${d.fecha}T${d.hora}`);
+          const diffHours = (now - dialisisTime) / (1000 * 60 * 60);
+          let maxHours = 6;
+          if (d.bolsa === '1.5%') maxHours = 6;
+          else if (d.bolsa === '2.5%') maxHours = 8;
+          else if (d.bolsa === '4.25%') maxHours = 12;
+          else if (d.bolsa === 'Extraneal') maxHours = 16;
+          else if (d.bolsa === 'Nutrineal') maxHours = 6;
+          else maxHours = 8;
+          if (diffHours > maxHours) {
+            allAlerts.push({ type: 'danger', msg: `⏰ ¡Han pasado más de ${maxHours} horas desde la última diálisis (${d.bolsa})!` });
+          } else if (diffHours > maxHours * 0.7) {
+            allAlerts.push({ type: 'warning', msg: `⏳ Próxima diálisis recomendada en ~${Math.round(maxHours - diffHours)}h (${d.bolsa})` });
+          }
+        });
+      }
+      if (allAlerts.length === 0) {
+        alertsContainer.innerHTML =
+          `<div class="alert alert-success"><i class="fas fa-check-circle"></i> Todo en orden. ¡Sigue así!</div>`;
+      } else {
+        alertsContainer.innerHTML = allAlerts.map(a =>
+          `<div class="alert alert-${a.type}"><i class="fas fa-bell"></i> ${a.msg}</div>`
+        ).join('');
+      }
+    }
+
+    // ============================================================
+    //  RENDER: DIÁLISIS HISTORIAL
+    // ============================================================
+    function renderDialisisHistorial() {
+      const el = $('#historialDialisis');
+      if (state.dialisis.length === 0) {
+        el.innerHTML = '<div class="empty-state"><i class="fas fa-syringe"></i><p>No hay registros de diálisis</p></div>';
+        return;
+      }
+      const sorted = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp);
+      el.innerHTML = sorted.map(d => {
+        const uf = (d.ml || 0) - (d.infusion_ml || 2000);
+        const bagInfo = getBagInfo(d.bolsa);
+        return `
+          <div class="list-item">
+            <div class="info">
+              <div class="title">${formatDate(d.fecha)} ${d.hora} <span class="tag">${d.bolsa}</span></div>
+              <div class="sub">
+                <span>💧 Drenado: <strong>${d.ml} ml</strong></span>
+                <span>⏳ Infusión: <strong>${d.infusion_ml || 2000} ml</strong></span>
+                <span style="font-weight:600;color:${uf >= 0 ? 'var(--success)' : 'var(--danger)'};">📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml</span>
+                ${d.presion_sis ? `<span>❤️ ${d.presion_sis}/${d.presion_dia || '?'} mmHg</span>` : ''}
+                ${d.glucosa ? `<span>🩸 ${d.glucosa} mg/dL</span>` : ''}
+                <span class="badge-time">⏰ ${bagInfo.rango}</span>
+              </div>
+              ${d.notas ? `<div style="font-size:0.7rem;color:var(--gray);margin-top:2px;">📝 ${d.notas}</div>` : ''}
+            </div>
+            <div class="actions">
+              <button class="del" onclick="deleteDialisis('${d.id}')"><i class="fas fa-trash-alt"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ============================================================
+    //  RENDER: SUB-PÁGINA RECETAS
+    // ============================================================
+    function renderSubPage(specialty) {
+      const subPage = document.querySelector(`.sub-page[data-specialty="${specialty}"]`);
+      if (!subPage) return;
+      const doc = state.doctores[specialty] || { nombre: specialty, receta: '' };
+      const nameDisplay = subPage.querySelector('.doc-name-display');
+      if (nameDisplay) nameDisplay.textContent = doc.nombre || specialty;
+      const recetaDisplay = subPage.querySelector('.doc-receta-display span');
+      if (recetaDisplay) recetaDisplay.textContent = doc.receta || 'Sin receta registrada';
+
+      const listContainer = subPage.querySelector('.listaMedicamentosEspecialidad');
+      if (!listContainer) return;
+      const meds = getMedsBySpecialty(specialty);
+      if (meds.length === 0) {
+        listContainer.innerHTML = 'No hay medicamentos registrados para este especialista.';
+        return;
+      }
+      const sorted = meds.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+      listContainer.innerHTML = sorted.map(m => {
+        const low = m.stock <= m.umbral;
+        const freqMap = { '8h': 'C/8h', '12h': 'C/12h', '24h': 'C/24h', '6h': 'C/6h', '4h': 'C/4h', '48h': 'C/48h',
+          'semanal': 'Semanal', 'otra': 'Otra' };
+        return `
+          <div class="list-item" style="${low ? 'border-left:3px solid var(--danger);padding-left:12px;' : ''}">
+            <div class="info">
+              <div class="title">${m.nombre} ${low ? '⚠️' : ''}</div>
+              <div class="sub">
+                <span>Stock: <strong style="${low ? 'color:var(--danger);' : ''}">${m.stock}</strong> / ${m.pillsBox}</span>
+                <span>${freqMap[m.frecuencia] || m.frecuencia}</span>
+                ${m.dosis ? `<span>${m.dosis}</span>` : ''}
+                ${m.oralMl ? `<span>${m.oralMl} ml</span>` : ''}
+                <span style="font-size:0.6rem;color:var(--gray);">Umbral: ${m.umbral}</span>
+              </div>
+            </div>
+            <div class="actions">
+              <button onclick="editMedicamento('${m.id}')"><i class="fas fa-edit"></i></button>
+              <button class="del" onclick="deleteMedicamento('${m.id}')"><i class="fas fa-trash-alt"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      updateMedBadge();
+    }
+
+    function updateMedBadge() {
+      const low = getLowStockMeds();
+      const badge = $('#medBadge');
+      if (low.length > 0) {
+        badge.style.display = 'block';
+        badge.textContent = low.length;
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // ============================================================
+    //  CRUD: DIÁLISIS
+    // ============================================================
+    async function addDialisis(data) {
+      const entry = { id: generateId(), ...data, timestamp: Date.now() };
+      state.dialisis.push(entry);
+      const ok = await guardarEnFirebase();
+      if (!ok) guardarEnLocalStorage();
+      renderDashboard();
+      renderDialisisHistorial();
+      checkAndSendTelegramAlert('dialisis', entry);
+      showToast('✅ Diálisis registrada correctamente', 'success');
+    }
+
+    window.deleteDialisis = async function(id) {
+      if (!confirm('¿Eliminar este registro de diálisis?')) return;
+      state.dialisis = state.dialisis.filter(d => d.id !== id);
+      await guardarEnFirebase();
+      renderDashboard();
+      renderDialisisHistorial();
+      showToast('Registro eliminado', 'info');
+    };
+
+    // ============================================================
+    //  CRUD: MEDICAMENTOS
+    // ============================================================
+    async function addMedicamento(data) {
+      const entry = { id: generateId(), ...data, timestamp: Date.now() };
+      state.medicamentos.push(entry);
+      await guardarEnFirebase();
+      renderSubPage(entry.specialty);
+      renderDashboard();
+      if (entry.stock <= entry.umbral) checkAndSendTelegramAlert('medicamento_bajo', entry);
+      showToast(`✅ ${entry.nombre} agregado (${entry.specialty})`, 'success');
+    }
+
+    window.editMedicamento = function(id) {
+      const med = state.medicamentos.find(m => m.id === id);
+      if (!med) return;
+      openModal('Agregar stock', `
+        <form id="formEditMed">
+          <div class="form-group"><label>${med.nombre} - Stock actual: <strong>${med.stock}</strong></label><input type="number" class="form-control" id="editMedStock" placeholder="Nuevo stock" min="0" required /></div>
+          <div class="form-group"><label>Umbral de alerta</label><input type="number" class="form-control" id="editMedUmbral" value="${med.umbral}" min="1" required /></div>
+          <button type="submit" class="btn btn-primary btn-block">Actualizar stock</button>
+        </form>
+      `);
+      $('#formEditMed').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const newStock = parseInt($('#editMedStock').value);
+        const newUmbral = parseInt($('#editMedUmbral').value);
+        if (isNaN(newStock) || newStock < 0) { showToast('Stock válido', 'error'); return; }
+        med.stock = newStock;
+        med.umbral = newUmbral;
+        await guardarEnFirebase();
+        renderSubPage(med.specialty);
+        renderDashboard();
+        closeModal();
+        showToast(`Stock de ${med.nombre} actualizado a ${newStock}`, 'success');
+        if (med.stock <= med.umbral) checkAndSendTelegramAlert('medicamento_bajo', med);
+      });
+    };
+
+    window.deleteMedicamento = async function(id) {
+      if (!confirm('¿Eliminar este medicamento?')) return;
+      const med = state.medicamentos.find(m => m.id === id);
+      state.medicamentos = state.medicamentos.filter(m => m.id !== id);
+      await guardarEnFirebase();
+      if (med) renderSubPage(med.specialty);
+      renderDashboard();
+      showToast('Medicamento eliminado', 'info');
+    };
+
+    // ============================================================
+    //  CRUD: PERFIL DE DOCTOR
+    // ============================================================
+    async function updateDoctorProfile(specialty, nombre, receta) {
+      if (state.doctores[specialty]) {
+        state.doctores[specialty].nombre = nombre || state.doctores[specialty].nombre;
+        state.doctores[specialty].receta = receta || '';
+      }
+      await guardarEnFirebase();
+      renderSubPage(specialty);
+      showToast('Perfil actualizado', 'success');
+    }
+
+    // ============================================================
+    //  TELEGRAM
+    // ============================================================
+    async function sendTelegramMessage(message) {
+      const { token, chatId } = tgSettings;
+      if (!token || !chatId) { showToast('Configura el Bot Token y Chat ID', 'warning'); return false; }
+      try {
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
+        });
+        const data = await resp.json();
+        if (data.ok) { showToast('📨 Mensaje enviado a Telegram', 'success'); return true; } else { showToast(
+            'Error: ' + (data.description || 'desconocido'), 'error'); return false; }
+      } catch (e) { showToast('Error de red', 'error'); return false; }
+    }
+
+    function checkAndSendTelegramAlert(type, data) {
+      if (!tgSettings.token || !tgSettings.chatId) return;
+      let msg = '';
+      if (type === 'dialisis') {
+        const uf = (data.ml || 0) - (data.infusion_ml || 2000);
+        const bagInfo = getBagInfo(data.bolsa);
+        msg =
+          `🩺 <b>Nueva diálisis registrada</b>\n📅 ${data.fecha} ${data.hora}\n💉 Bolsa: ${data.bolsa}\n🧪 Drenado: ${data.ml} ml\n⏳ Infusión: ${data.infusion_ml || 2000} ml\n📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml\n⏰ Próxima: ${bagInfo.rango}`;
+        if (data.presion_sis) msg += `\n❤️ Presión: ${data.presion_sis}/${data.presion_dia || '?'} mmHg`;
+        if (data.glucosa) msg += `\n🩸 Glucosa: ${data.glucosa} mg/dL`;
+        if (data.notas) msg += `\n📝 Notas: ${data.notas}`;
+      } else if (type === 'medicamento_bajo') {
+        msg =
+          `⚠️ <b>¡Stock bajo de medicamento!</b>\n💊 ${data.nombre}\n📦 Stock: ${data.stock} / ${data.pillsBox}\n🔔 Umbral: ${data.umbral}\n👨‍⚕️ Especialista: ${data.specialty || 'N/A'}`;
+      } else if (type === 'reporte_diario') {
+        const hoy = getTodayDialisis().length;
+        const lowMeds = getLowStockMeds();
+        msg = `📋 <b>Reporte diario</b>\n🩺 Diálisis hoy: ${hoy}\n💊 Medicamentos: ${state.medicamentos.length}\n⚠️ Stock bajo: ${lowMeds.length}`;
+        if (lowMeds.length > 0) {
+          msg += '\n\n🔻 <b>Medicamentos con stock bajo:</b>\n' + lowMeds.map(m =>
+            `- ${m.nombre} (${m.specialty}): ${m.stock}`).join('\n');
+        }
+        const ult = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
+        if (ult) {
+          const uf = (ult.ml || 0) - (ult.infusion_ml || 2000);
+          const bagInfo = getBagInfo(ult.bolsa);
+          msg +=
+            `\n\n🕐 <b>Última diálisis:</b> ${ult.fecha} ${ult.hora}\n💉 ${ult.bolsa} · UF: ${uf >= 0 ? '+' : ''}${uf} ml\n⏰ Próxima: ${bagInfo.rango}`;
+        }
+      }
+      if (msg) sendTelegramMessage(msg);
+    }
+
+    // ============================================================
+    //  IA CON GROQ Y MICRÓFONO
+    // ============================================================
+    async function consultarGroq(pregunta) {
+      if (!groqApiKey) {
+        showToast('Configura tu API Key de Groq en la pestaña Configuración', 'warning');
+        return 'Por favor, ingresa tu clave de Groq en Configuración.';
+      }
+      try {
+        // Construir contexto con los datos actuales
+        const ultima = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
+        let contexto = '';
+        if (ultima) {
+          const uf = (ultima.ml || 0) - (ultima.infusion_ml || 2000);
+          contexto += `Última diálisis: ${ultima.fecha} ${ultima.hora}, bolsa ${ultima.bolsa}, drenado ${ultima.ml} ml, ultrafiltración ${uf} ml. `;
+        }
+        const meds = state.medicamentos.map(m => `${m.nombre} (${m.specialty}) stock ${m.stock}/${m.pillsBox}`).join(', ');
+        if (meds) contexto += `Medicamentos: ${meds}. `;
+
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${groqApiKey}`
+          },
+          body: JSON.stringify({
+            model: 'llama3-70b-8192',
+            messages: [
+              { role: 'system', content: `Eres un asistente médico para pacientes de diálisis peritoneal. Respondes preguntas sobre horarios de diálisis, medicamentos, citas, etc. Basa tus respuestas en esta información: ${contexto}. Si no sabes algo, dices que no tienes esa información.` },
+              { role: 'user', content: pregunta }
+            ],
+            temperature: 0.7,
+            max_tokens: 300
+          })
+        });
+        const data = await response.json();
+        if (data.choices && data.choices.length > 0) {
+          return data.choices[0].message.content;
+        } else {
+          return 'No pude procesar tu pregunta. Intenta de nuevo.';
+        }
+      } catch (e) {
+        console.error(e);
+        return 'Error al conectar con Groq. Revisa tu clave o la conexión.';
+      }
+    }
+
+    // Evento del botón de preguntar IA
+    $('#btnPreguntarIA').addEventListener('click', async function() {
+      const pregunta = $('#iaPregunta').value.trim();
+      if (!pregunta) { showToast('Escribe una pregunta', 'warning'); return; }
+      const respuestaEl = $('#iaRespuesta');
+      respuestaEl.textContent = 'Pensando...';
+      const respuesta = await consultarGroq(pregunta);
+      respuestaEl.textContent = respuesta;
+      // Opcional: leer respuesta en voz alta
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(respuesta);
+        utterance.lang = 'es-ES';
+        window.speechSynthesis.speak(utterance);
+      }
+    });
+
+    // Micrófono
+    let recognition = null;
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.lang = 'es-ES';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onresult = async (event) => {
+        const pregunta = event.results[0][0].transcript;
+        $('#iaPregunta').value = pregunta;
+        document.querySelector('.mic-btn').classList.remove('recording');
+        showToast('🎤 Pregunta recibida: ' + pregunta, 'info');
+        // Automáticamente consultar
+        const respuestaEl = $('#iaRespuesta');
+        respuestaEl.textContent = 'Pensando...';
+        const respuesta = await consultarGroq(pregunta);
+        respuestaEl.textContent = respuesta;
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(respuesta);
+          utterance.lang = 'es-ES';
+          window.speechSynthesis.speak(utterance);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        document.querySelector('.mic-btn').classList.remove('recording');
+        showToast('Error de micrófono: ' + event.error, 'error');
+      };
+
+      recognition.onend = () => {
+        document.querySelector('.mic-btn').classList.remove('recording');
+      };
+    }
+
+    $('#micBtn').addEventListener('click', function() {
+      if (!recognition) {
+        showToast('Tu navegador no soporta reconocimiento de voz', 'error');
+        return;
+      }
+      if (this.classList.contains('recording')) {
+        recognition.stop();
+        this.classList.remove('recording');
+        return;
+      }
+      this.classList.add('recording');
+      recognition.start();
+    });
+
+    // Guardar clave Groq
+    $('#btnGuardarGroq').addEventListener('click', function() {
+      const key = $('#groqApiKey').value.trim();
+      if (key) {
+        groqApiKey = key;
+        guardarSettingsLocales();
+        showToast('✅ Clave Groq guardada', 'success');
+      } else {
+        showToast('Ingresa una clave válida', 'error');
+      }
+    });
+
+    // ============================================================
+    //  EVENTOS DE SUB-TABS Y FORMULARIOS
+    // ============================================================
+    document.querySelectorAll('.sub-tab-item').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.sub-tab-item').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const specialty = this.dataset.specialty;
+        document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
+        const target = document.querySelector(`.sub-page[data-specialty="${specialty}"]`);
+        if (target) target.classList.add('active');
+        renderSubPage(specialty);
+      });
+    });
+
+    document.querySelectorAll('.formMedicamentoEspecialidad').forEach(form => {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const specialty = this.dataset.specialty;
+        const nombre = this.querySelector('.medNombre').value.trim();
+        const pillsBox = parseInt(this.querySelector('.medPillsBox').value);
+        const stock = parseInt(this.querySelector('.medStock').value);
+        const frecuencia = this.querySelector('.medFrecuencia').value;
+        const dosis = this.querySelector('.medDosis').value.trim();
+        const oralMl = parseFloat(this.querySelector('.medOralMl').value) || 0;
+        const umbral = parseInt(this.querySelector('.medUmbral').value);
+
+        if (!nombre || isNaN(pillsBox) || pillsBox < 1 || isNaN(stock) || stock < 0 || isNaN(umbral) || umbral < 1) {
+          showToast('Completa todos los campos correctamente', 'error');
+          return;
+        }
+        addMedicamento({ specialty, nombre, pillsBox, stock, frecuencia, dosis, oralMl, umbral });
+        this.reset();
+        this.querySelector('.medUmbral').value = 5;
+      });
+    });
+
+    document.querySelectorAll('.edit-doctor-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const specialty = this.dataset.specialty;
+        const doc = state.doctores[specialty] || { nombre: '', receta: '' };
+        openModal(`Editar ${doc.nombre || specialty}`, `
+          <form id="formEditDoctor">
+            <div class="form-group"><label>Nombre del doctor</label><input type="text" class="form-control" id="editDocNombre" value="${doc.nombre || ''}" required /></div>
+            <div class="form-group"><label>Receta / Indicaciones</label><textarea class="form-control" id="editDocReceta" rows="3">${doc.receta || ''}</textarea></div>
+            <button type="submit" class="btn btn-primary btn-block">Guardar cambios</button>
+          </form>
+        `);
+        $('#formEditDoctor').addEventListener('submit', function(e) {
+          e.preventDefault();
+          const nombre = $('#editDocNombre').value.trim();
+          const receta = $('#editDocReceta').value.trim();
+          if (!nombre) { showToast('El nombre es obligatorio', 'error'); return; }
+          updateDoctorProfile(specialty, nombre, receta);
+          closeModal();
+        });
+      });
+    });
+
+    // ============================================================
+    //  FORM: DIÁLISIS
+    // ============================================================
+    function updateBagInfo() {
+      const bolsa = $('#dialisisBolsa').value;
+      const bagInfo = getBagInfo(bolsa);
+      const elInfo = $('#nextDialysisTime');
+      if (elInfo) {
+        elInfo.textContent = bagInfo.rango;
+        if (bagInfo.color) {
+          elInfo.textContent = `${bagInfo.rango} (Bolsa ${bagInfo.color})`;
+        }
+      }
+      const infusion = parseFloat($('#dialisisInfusion').value) || 0;
+      const drenado = parseFloat($('#dialisisMl').value) || 0;
+      const uf = drenado - infusion;
+      const ufEl = $('#ufValue');
+      if (ufEl) {
+        ufEl.textContent = uf;
+        ufEl.className = 'value' + (uf < 0 ? ' negative' : '');
+      }
+    }
+
+    $('#dialisisBolsa').addEventListener('change', updateBagInfo);
+    $('#dialisisInfusion').addEventListener('input', updateBagInfo);
+    $('#dialisisMl').addEventListener('input', updateBagInfo);
+
+    $('#formDialisis').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const fecha = $('#dialisisFecha').value;
+      const hora = $('#dialisisHora').value;
+      const bolsa = $('#dialisisBolsa').value;
+      const infusion_ml = parseFloat($('#dialisisInfusion').value) || 2000;
+      const ml = parseFloat($('#dialisisMl').value);
+      const notas = $('#dialisisNotas').value.trim();
+      const presion_sis = parseInt($('#dialisisPresionSis').value) || null;
+      const presion_dia = parseInt($('#dialisisPresionDia').value) || null;
+      const glucosa = parseInt($('#dialisisGlucosa').value) || null;
+
+      if (!fecha || !hora || !bolsa || isNaN(ml) || ml < 0 || isNaN(infusion_ml) || infusion_ml < 0) {
+        showToast('Completa todos los campos obligatorios correctamente', 'error');
+        return;
+      }
+
+      const ultrafiltracion = ml - infusion_ml;
+      addDialisis({ fecha, hora, bolsa, infusion_ml, ml, ultrafiltracion, presion_sis, presion_dia, glucosa, notas });
+
+      this.reset();
+      $('#dialisisFecha').value = todayStr();
+      const now = new Date();
+      $('#dialisisHora').value = now.toTimeString().slice(0, 5);
+      $('#dialisisInfusion').value = 2000;
+      $('#ufValue').textContent = '0';
+      $('#ufValue').className = 'value';
+      $('#nextDialysisTime').textContent = 'Selecciona una bolsa para ver el rango';
+    });
+
+    // ============================================================
+    //  FORM: TELEGRAM
+    // ============================================================
+    $('#formTelegram').addEventListener('submit', function(e) {
+      e.preventDefault();
+      tgSettings.token = $('#tgToken').value.trim();
+      tgSettings.chatId = $('#tgChatId').value.trim();
+      guardarSettingsLocales();
+      showToast('✅ Configuración de Telegram guardada', 'success');
+    });
+    $('#btnTestTelegram').addEventListener('click', async function() {
+      await sendTelegramMessage('🔔 <b>Mensaje de prueba</b>\n✅ Configuración de Telegram correcta.');
+    });
+
+    // ============================================================
+    //  BOTONES FLOTANTES Y REFRESH
+    // ============================================================
+    $('#btnTelegramFloat').addEventListener('click', function() {
+      if (!tgSettings.token || !tgSettings.chatId) { showToast('Configura Telegram en Configuración', 'warning');
+        navigateTo('config'); return; }
+      checkAndSendTelegramAlert('reporte_diario');
+    });
+    $('#btnTelegramConfig').addEventListener('click', function() { navigateTo('config'); });
+    $('#btnRefresh').addEventListener('click', async function() {
+      await cargarDesdeFirebase();
+      renderAll();
+      showToast('🔄 Actualizado desde Firebase', 'info');
+    });
+
+    // ============================================================
+    //  EXPORT / IMPORT
+    // ============================================================
+    $('#btnExportarDatos').addEventListener('click', function() {
+      const data = { version: '2.1', exportado: new Date().toISOString(), ...state };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dialisis_backup_${todayStr()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('📥 Datos exportados', 'success');
+    });
+    $('#btnImportarDatos').addEventListener('click', function() { $('#fileInput').click(); });
+    $('#fileInput').addEventListener('change', async function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(ev) {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (data.dialisis) state.dialisis = data.dialisis;
+          if (data.medicamentos) state.medicamentos = data.medicamentos;
+          if (data.doctores) state.doctores = data.doctores;
+          await guardarEnFirebase();
+          renderAll();
+          showToast('✅ Datos importados', 'success');
+        } catch (err) { showToast('Error al importar', 'error'); }
+      };
+      reader.readAsText(file);
+      this.value = '';
+    });
+
+    $('#btnBorrarTodo').addEventListener('click', async function() {
+      if (!confirm('¿Borrar TODOS los datos?') || !confirm('¿Estás completamente seguro?')) return;
+      state.dialisis = [];
+      state.medicamentos = [];
+      state.doctores = {
+        angiologia: { nombre: 'Angiólogo', especialidad: 'Angiología', receta: '' },
+        nutriologia: { nombre: 'Nutriólogo', especialidad: 'Nutriología', receta: '' },
+        nefrologia: { nombre: 'Nefrólogo', especialidad: 'Nefrología', receta: '' },
+        medicina_interna: { nombre: 'Medicina Interna', especialidad: 'Medicina Interna', receta: '' }
+      };
+      await guardarEnFirebase();
+      renderAll();
+      showToast('🗑️ Todos los datos eliminados', 'info');
+    });
+
+    // ============================================================
+    //  TABS
+    // ============================================================
+    $$('.tab-item').forEach(tab => {
+      tab.addEventListener('click', function() { navigateTo(this.dataset.tab); });
+    });
+
+    // ============================================================
+    //  RENDER ALL
+    // ============================================================
+    function renderAll() {
+      renderDashboard();
+      renderDialisisHistorial();
+      const activeSub = document.querySelector('.sub-tab-item.active');
+      if (activeSub) renderSubPage(activeSub.dataset.specialty);
+      updateMedBadge();
+    }
+
+    // ============================================================
+    //  INIT
+    // ============================================================
+    async function init() {
+      // Cargar settings locales primero
+      cargarSettingsLocales();
+
+      // Cargar datos desde Firestore
+      const online = await cargarDesdeFirebase();
+      actualizarBadgeOnline(online);
+
+      // Si no hay conexión, cargar desde localStorage como fallback
+      if (!online) {
+        cargarDesdeLocalStorage();
+        showToast('⚠️ Trabajando en modo offline. Los datos se guardarán localmente.', 'warning');
+      }
+
+      // Preparar formularios
+      $('#dialisisFecha').value = todayStr();
+      const now = new Date();
+      $('#dialisisHora').value = now.toTimeString().slice(0, 5);
+      $('#dialisisInfusion').value = 2000;
+
+      // Activar sub-pestaña por defecto
+      const firstSub = document.querySelector('.sub-tab-item');
+      if (firstSub) {
+        document.querySelectorAll('.sub-tab-item').forEach(b => b.classList.remove('active'));
+        firstSub.classList.add('active');
+        document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
+        const target = document.querySelector(`.sub-page[data-specialty="${firstSub.dataset.specialty}"]`);
+        if (target) target.classList.add('active');
+        renderSubPage(firstSub.dataset.specialty);
+      }
+
+      renderAll();
+      navigateTo('dashboard');
+
+      // Recordatorios
+      setTimeout(() => {
+        const low = getLowStockMeds();
+        if (low.length > 0 && tgSettings.token && tgSettings.chatId) {
+          low.forEach(m => checkAndSendTelegramAlert('medicamento_bajo', m));
+        }
+        if (getTodayDialisis().length === 0) {
+          showToast('📋 Recuerda registrar tu diálisis de hoy', 'info');
+        } else {
+          const hoy = getTodayDialisis();
+          const now = new Date();
+          hoy.forEach(d => {
+            const dialisisTime = new Date(`${d.fecha}T${d.hora}`);
+            const diffHours = (now - dialisisTime) / (1000 * 60 * 60);
+            let maxHours = 6;
+            if (d.bolsa === '1.5%') maxHours = 6;
+            else if (d.bolsa === '2.5%') maxHours = 8;
+            else if (d.bolsa === '4.25%') maxHours = 12;
+            else if (d.bolsa === 'Extraneal') maxHours = 16;
+            else if (d.bolsa === 'Nutrineal') maxHours = 6;
+            else maxHours = 8;
+            if (diffHours > maxHours) {
+              showToast(`⏰ ¡Han pasado más de ${maxHours}h desde la última diálisis!`, 'warning');
+            }
+          });
+        }
+      }, 1500);
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+          .then(() => console.log('✅ SW registrado'))
+          .catch(err => console.warn('⚠️ SW no registrado:', err));
+      }
+      console.log('🚀 App de Diálisis Peritoneal v2.1 con Firebase y Groq');
+    }
+
+    // Exponer funciones globales
+    window.navigateTo = navigateTo;
+    window.editMedicamento = editMedicamento;
+    window.deleteDialisis = deleteDialisis;
+    window.deleteMedicamento = deleteMedicamento;
+
+    // Arrancar
+    init();
+  </script>
+</body>
+</html>
