@@ -806,6 +806,18 @@
       50% { transform: scale(1.1); }
       100% { transform: scale(1); }
     }
+    /* ===== RECORDATORIO INFO ===== */
+    .recordatorio-info {
+      background: #fef9e7;
+      border-left: 4px solid var(--secondary);
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 0.85rem;
+    }
+    .recordatorio-info strong {
+      color: var(--secondary-dark);
+    }
   </style>
 </head>
 <body>
@@ -816,7 +828,7 @@
       <h1><i class="fas fa-kidney"></i> Diálisis</h1>
       <div class="header-actions">
         <span class="online-badge" id="onlineBadge"><i class="fas fa-circle"></i> Online</span>
-        <button id="btnTelegramConfig" title="Configurar Telegram"><i class="fab fa-telegram-plane"></i></button>
+        <!-- ELIMINADO el botón de Telegram del header -->
         <button id="btnRefresh" title="Actualizar"><i class="fas fa-sync-alt"></i></button>
       </div>
     </header>
@@ -879,6 +891,11 @@
               <i class="fas fa-clock"></i> <strong>Próxima diálisis:</strong>
               <span id="nextDialysisTime">Selecciona una bolsa para ver el rango</span>
             </div>
+            <!-- NUEVO CAMPO: Hora de la próxima diálisis -->
+            <div class="form-group">
+              <label>Hora de la próxima diálisis <span class="label-hint">(se enviará recordatorio 15 min antes)</span></label>
+              <input type="time" class="form-control" id="dialisisProximaHora" required />
+            </div>
             <div class="form-row">
               <div class="form-group"><label>Volumen de infusión <span class="label-hint">(ml)</span></label><input type="number" class="form-control" id="dialisisInfusion" placeholder="2000" value="2000" min="0" step="50" required /></div>
               <div class="form-group"><label>Volumen drenado <span class="label-hint">(ml)</span></label><input type="number" class="form-control" id="dialisisMl" placeholder="Ej: 2500" min="0" step="50" required /></div>
@@ -895,6 +912,10 @@
             <div class="form-group"><label>Notas <span class="label-hint">(opcional)</span></label><input type="text" class="form-control" id="dialisisNotas" placeholder="Observaciones..." /></div>
             <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Guardar diálisis</button>
           </form>
+          <!-- Mostrar info del próximo recordatorio -->
+          <div class="recordatorio-info" id="recordatorioInfo" style="display:none;">
+            <i class="fas fa-bell"></i> <strong>Próximo recordatorio:</strong> <span id="proximoRecordatorioTexto">No programado</span>
+          </div>
         </div>
         <div class="card">
           <div class="card-header"><span class="card-title"><i class="fas fa-history"></i> Historial</span><button class="btn btn-sm btn-secondary" id="btnClearDialisis">Limpiar</button></div>
@@ -1084,15 +1105,7 @@
           <input type="file" id="fileInput" accept=".json" style="display:none;" />
           <button class="btn btn-danger btn-block" style="margin-top:12px;" id="btnBorrarTodo"><i class="fas fa-trash"></i> Borrar todos los datos</button>
         </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Clave Groq (IA)</span></div>
-          <div class="form-group">
-            <label>API Key Groq</label>
-            <input type="password" class="form-control" id="groqApiKey" placeholder="sk-..." />
-            <small style="color:var(--gray);">Obtén tu clave en console.groq.com</small>
-          </div>
-          <button class="btn btn-primary btn-block" id="btnGuardarGroq"><i class="fas fa-save"></i> Guardar clave</button>
-        </div>
+        <!-- ELIMINADO el bloque de clave Groq (ya está fija en el código) -->
       </div>
 
     </div>
@@ -1105,7 +1118,8 @@
       <button class="tab-item" data-tab="config"><i class="fas fa-cog"></i><span>Config</span></button>
     </nav>
 
-    <button class="telegram-float" id="btnTelegramFloat" title="Enviar reporte a Telegram"><i class="fab fa-telegram-plane"></i></button>
+    <!-- BOTÓN FLOTANTE TELEGRAM (ahora manual/forzado) -->
+    <button class="telegram-float" id="btnTelegramFloat" title="Enviar recordatorio manual"><i class="fab fa-telegram-plane"></i></button>
   </div>
 
   <!-- MODAL -->
@@ -1133,7 +1147,6 @@
       measurementId: "G-7MQWH2YLCP"
     };
 
-    // Inicializar Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
@@ -1152,12 +1165,17 @@
     };
 
     let tgSettings = { token: '', chatId: '' };
-    let groqApiKey = '';
+    // CLAVE GROQ FIJA (reemplázala con la tuya)
+    const groqApiKey = 'sk-TU_CLAVE_AQUI';
+
+    // ===== VARIABLES PARA RECORDATORIO AUTOMÁTICO =====
+    let proximaDialisisTimestamp = null; // timestamp de la próxima diálisis
+    let recordatorioEnviado = false;
 
     // ============================================================
     //  FUNCIONES DE PERSISTENCIA (Firestore)
     // ============================================================
-    const USUARIO_ID = 'paciente1'; // Cambia si quieres múltiples usuarios
+    const USUARIO_ID = 'paciente1';
 
     async function cargarDesdeFirebase() {
       try {
@@ -1167,16 +1185,13 @@
           state.dialisis = data.dialisis || [];
           state.medicamentos = data.medicamentos || [];
           if (data.doctores) state.doctores = data.doctores;
-          // Migrar campos faltantes
           state.dialisis.forEach(d => {
             if (d.infusion_ml === undefined) d.infusion_ml = 2000;
             if (d.ultrafiltracion === undefined) d.ultrafiltracion = (d.ml || 0) - (d.infusion_ml || 2000);
           });
-          // Cargar Telegram y Groq desde localStorage (no en Firestore por seguridad)
           cargarSettingsLocales();
           return true;
         } else {
-          // Si no existe, creamos un documento vacío
           await db.collection('pacientes').doc(USUARIO_ID).set({
             dialisis: [],
             medicamentos: [],
@@ -1186,7 +1201,6 @@
         }
       } catch (e) {
         console.error('Error al cargar desde Firestore:', e);
-        // Fallback: intentar cargar desde localStorage
         cargarDesdeLocalStorage();
         return false;
       }
@@ -1208,7 +1222,6 @@
       }
     }
 
-    // Fallback a localStorage para cuando no hay conexión
     function cargarDesdeLocalStorage() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -1238,17 +1251,11 @@
           $('#tgToken').value = parsed.token || '';
           $('#tgChatId').value = parsed.chatId || '';
         }
-        const groqRaw = localStorage.getItem('groqApiKey');
-        if (groqRaw) {
-          groqApiKey = groqRaw;
-          $('#groqApiKey').value = groqApiKey;
-        }
       } catch (e) { console.warn('Error cargando settings', e); }
     }
 
     function guardarSettingsLocales() {
       localStorage.setItem(TG_SETTINGS_KEY, JSON.stringify(tgSettings));
-      localStorage.setItem('groqApiKey', groqApiKey);
     }
 
     const TG_SETTINGS_KEY = 'telegramSettings';
@@ -1518,7 +1525,7 @@
     }
 
     // ============================================================
-    //  CRUD: DIÁLISIS
+    //  CRUD: DIÁLISIS (con programación de recordatorio)
     // ============================================================
     async function addDialisis(data) {
       const entry = { id: generateId(), ...data, timestamp: Date.now() };
@@ -1528,6 +1535,23 @@
       renderDashboard();
       renderDialisisHistorial();
       checkAndSendTelegramAlert('dialisis', entry);
+
+      // ===== PROGRAMAR RECORDATORIO AUTOMÁTICO =====
+      if (data.proximaHora) {
+        // Combinar fecha de la diálisis con la hora de la próxima
+        const fechaBase = new Date(`${data.fecha}T${data.proximaHora}`);
+        // Si la hora ya pasó hoy, asumimos que es mañana (por si registran después)
+        if (fechaBase < new Date()) {
+          fechaBase.setDate(fechaBase.getDate() + 1);
+        }
+        proximaDialisisTimestamp = fechaBase.getTime();
+        recordatorioEnviado = false;
+        localStorage.setItem('proximaDialisis', proximaDialisisTimestamp);
+        // Mostrar en la interfaz
+        actualizarInfoRecordatorio();
+        showToast(`⏰ Recordatorio programado para ${fechaBase.toLocaleTimeString()} (15 min antes)`, 'success');
+      }
+
       showToast('✅ Diálisis registrada correctamente', 'success');
     }
 
@@ -1654,16 +1678,68 @@
       if (msg) sendTelegramMessage(msg);
     }
 
+    // ===== FUNCIÓN PARA ENVIAR RECORDATORIO MANUAL O AUTOMÁTICO =====
+    async function enviarRecordatorioTelegram() {
+      if (!proximaDialisisTimestamp) {
+        showToast('No hay una próxima diálisis programada', 'warning');
+        return;
+      }
+      const ultima = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
+      if (!ultima) {
+        showToast('No hay diálisis registrada', 'warning');
+        return;
+      }
+      const fechaProxima = new Date(proximaDialisisTimestamp);
+      const msg =
+        `⏰ <b>Recordatorio de diálisis</b>\nLa próxima diálisis está programada para las <b>${fechaProxima.toLocaleTimeString()}</b> (en menos de 15 minutos).\nÚltima registrada: ${ultima.fecha} ${ultima.hora} (${ultima.bolsa})\n¡Prepárate!`;
+      const ok = await sendTelegramMessage(msg);
+      if (ok) {
+        recordatorioEnviado = true;
+        showToast('Recordatorio enviado', 'success');
+      }
+    }
+
+    // ===== VERIFICACIÓN PERIÓDICA DEL RECORDATORIO =====
+    function verificarRecordatorio() {
+      if (!proximaDialisisTimestamp || recordatorioEnviado) return;
+      const ahora = Date.now();
+      const diferencia = proximaDialisisTimestamp - ahora;
+      const quinceMinutos = 15 * 60 * 1000;
+      // Si falta menos de 15 minutos y aún no se ha enviado
+      if (diferencia <= quinceMinutos && diferencia > 0) {
+        enviarRecordatorioTelegram();
+      } else if (diferencia <= 0) {
+        // Si ya pasó la hora, limpiar
+        proximaDialisisTimestamp = null;
+        localStorage.removeItem('proximaDialisis');
+        recordatorioEnviado = false;
+        actualizarInfoRecordatorio();
+      }
+    }
+
+    // ===== ACTUALIZAR INFO EN PANTALLA =====
+    function actualizarInfoRecordatorio() {
+      const infoDiv = $('#recordatorioInfo');
+      const textoEl = $('#proximoRecordatorioTexto');
+      if (proximaDialisisTimestamp) {
+        const fecha = new Date(proximaDialisisTimestamp);
+        textoEl.textContent = fecha.toLocaleString();
+        infoDiv.style.display = 'block';
+      } else {
+        textoEl.textContent = 'No programado';
+        infoDiv.style.display = 'none';
+      }
+    }
+
     // ============================================================
-    //  IA CON GROQ Y MICRÓFONO
+    //  IA CON GROQ Y MICRÓFONO (sin cambios)
     // ============================================================
     async function consultarGroq(pregunta) {
-      if (!groqApiKey) {
-        showToast('Configura tu API Key de Groq en la pestaña Configuración', 'warning');
-        return 'Por favor, ingresa tu clave de Groq en Configuración.';
+      if (!groqApiKey || groqApiKey === 'sk-TU_CLAVE_AQUI') {
+        showToast('Configura tu clave de Groq en el código (variable groqApiKey)', 'warning');
+        return 'Por favor, configura la clave de Groq en el código.';
       }
       try {
-        // Construir contexto con los datos actuales
         const ultima = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
         let contexto = '';
         if (ultima) {
@@ -1701,7 +1777,6 @@
       }
     }
 
-    // Evento del botón de preguntar IA
     $('#btnPreguntarIA').addEventListener('click', async function() {
       const pregunta = $('#iaPregunta').value.trim();
       if (!pregunta) { showToast('Escribe una pregunta', 'warning'); return; }
@@ -1709,7 +1784,6 @@
       respuestaEl.textContent = 'Pensando...';
       const respuesta = await consultarGroq(pregunta);
       respuestaEl.textContent = respuesta;
-      // Opcional: leer respuesta en voz alta
       if ('speechSynthesis' in window) {
         const utterance = new SpeechSynthesisUtterance(respuesta);
         utterance.lang = 'es-ES';
@@ -1717,7 +1791,6 @@
       }
     });
 
-    // Micrófono
     let recognition = null;
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1731,7 +1804,6 @@
         $('#iaPregunta').value = pregunta;
         document.querySelector('.mic-btn').classList.remove('recording');
         showToast('🎤 Pregunta recibida: ' + pregunta, 'info');
-        // Automáticamente consultar
         const respuestaEl = $('#iaRespuesta');
         respuestaEl.textContent = 'Pensando...';
         const respuesta = await consultarGroq(pregunta);
@@ -1765,18 +1837,6 @@
       }
       this.classList.add('recording');
       recognition.start();
-    });
-
-    // Guardar clave Groq
-    $('#btnGuardarGroq').addEventListener('click', function() {
-      const key = $('#groqApiKey').value.trim();
-      if (key) {
-        groqApiKey = key;
-        guardarSettingsLocales();
-        showToast('✅ Clave Groq guardada', 'success');
-      } else {
-        showToast('Ingresa una clave válida', 'error');
-      }
     });
 
     // ============================================================
@@ -1870,6 +1930,7 @@
       const fecha = $('#dialisisFecha').value;
       const hora = $('#dialisisHora').value;
       const bolsa = $('#dialisisBolsa').value;
+      const proximaHora = $('#dialisisProximaHora').value;
       const infusion_ml = parseFloat($('#dialisisInfusion').value) || 2000;
       const ml = parseFloat($('#dialisisMl').value);
       const notas = $('#dialisisNotas').value.trim();
@@ -1877,13 +1938,14 @@
       const presion_dia = parseInt($('#dialisisPresionDia').value) || null;
       const glucosa = parseInt($('#dialisisGlucosa').value) || null;
 
-      if (!fecha || !hora || !bolsa || isNaN(ml) || ml < 0 || isNaN(infusion_ml) || infusion_ml < 0) {
-        showToast('Completa todos los campos obligatorios correctamente', 'error');
+      if (!fecha || !hora || !bolsa || !proximaHora || isNaN(ml) || ml < 0 || isNaN(infusion_ml) || infusion_ml < 0) {
+        showToast('Completa todos los campos obligatorios correctamente (incluye la hora de la próxima diálisis)', 'error');
         return;
       }
 
       const ultrafiltracion = ml - infusion_ml;
-      addDialisis({ fecha, hora, bolsa, infusion_ml, ml, ultrafiltracion, presion_sis, presion_dia, glucosa, notas });
+      addDialisis({ fecha, hora, bolsa, proximaHora, infusion_ml, ml, ultrafiltracion, presion_sis, presion_dia, glucosa,
+        notas });
 
       this.reset();
       $('#dialisisFecha').value = todayStr();
@@ -1913,13 +1975,35 @@
     //  BOTONES FLOTANTES Y REFRESH
     // ============================================================
     $('#btnTelegramFloat').addEventListener('click', function() {
-      if (!tgSettings.token || !tgSettings.chatId) { showToast('Configura Telegram en Configuración', 'warning');
-        navigateTo('config'); return; }
-      checkAndSendTelegramAlert('reporte_diario');
+      if (!tgSettings.token || !tgSettings.chatId) {
+        showToast('Configura Telegram en Configuración', 'warning');
+        navigateTo('config');
+        return;
+      }
+      // Enviar recordatorio manual (si existe)
+      if (proximaDialisisTimestamp) {
+        enviarRecordatorioTelegram();
+      } else {
+        // Si no hay recordatorio, enviar reporte diario
+        checkAndSendTelegramAlert('reporte_diario');
+      }
     });
-    $('#btnTelegramConfig').addEventListener('click', function() { navigateTo('config'); });
+
     $('#btnRefresh').addEventListener('click', async function() {
       await cargarDesdeFirebase();
+      // Recuperar próxima diálisis guardada
+      const guardado = localStorage.getItem('proximaDialisis');
+      if (guardado) {
+        const ts = parseInt(guardado);
+        if (ts > Date.now()) {
+          proximaDialisisTimestamp = ts;
+          recordatorioEnviado = false;
+          actualizarInfoRecordatorio();
+        } else {
+          localStorage.removeItem('proximaDialisis');
+          proximaDialisisTimestamp = null;
+        }
+      }
       renderAll();
       showToast('🔄 Actualizado desde Firebase', 'info');
     });
@@ -1928,7 +2012,7 @@
     //  EXPORT / IMPORT
     // ============================================================
     $('#btnExportarDatos').addEventListener('click', function() {
-      const data = { version: '2.1', exportado: new Date().toISOString(), ...state };
+      const data = { version: '2.2', exportado: new Date().toISOString(), ...state };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1989,23 +2073,34 @@
       const activeSub = document.querySelector('.sub-tab-item.active');
       if (activeSub) renderSubPage(activeSub.dataset.specialty);
       updateMedBadge();
+      actualizarInfoRecordatorio();
     }
 
     // ============================================================
     //  INIT
     // ============================================================
     async function init() {
-      // Cargar settings locales primero
       cargarSettingsLocales();
 
-      // Cargar datos desde Firestore
       const online = await cargarDesdeFirebase();
       actualizarBadgeOnline(online);
-
-      // Si no hay conexión, cargar desde localStorage como fallback
       if (!online) {
         cargarDesdeLocalStorage();
         showToast('⚠️ Trabajando en modo offline. Los datos se guardarán localmente.', 'warning');
+      }
+
+      // Recuperar próxima diálisis guardada
+      const guardado = localStorage.getItem('proximaDialisis');
+      if (guardado) {
+        const ts = parseInt(guardado);
+        if (ts > Date.now()) {
+          proximaDialisisTimestamp = ts;
+          recordatorioEnviado = false;
+          actualizarInfoRecordatorio();
+        } else {
+          localStorage.removeItem('proximaDialisis');
+          proximaDialisisTimestamp = null;
+        }
       }
 
       // Preparar formularios
@@ -2028,7 +2123,10 @@
       renderAll();
       navigateTo('dashboard');
 
-      // Recordatorios
+      // Iniciar intervalo de verificación de recordatorio (cada 30 segundos)
+      setInterval(verificarRecordatorio, 30000);
+
+      // Recordatorios iniciales
       setTimeout(() => {
         const low = getLowStockMeds();
         if (low.length > 0 && tgSettings.token && tgSettings.chatId) {
@@ -2061,16 +2159,14 @@
           .then(() => console.log('✅ SW registrado'))
           .catch(err => console.warn('⚠️ SW no registrado:', err));
       }
-      console.log('🚀 App de Diálisis Peritoneal v2.1 con Firebase y Groq');
+      console.log('🚀 App de Diálisis Peritoneal v2.2 con recordatorios automáticos');
     }
 
-    // Exponer funciones globales
     window.navigateTo = navigateTo;
     window.editMedicamento = editMedicamento;
     window.deleteDialisis = deleteDialisis;
     window.deleteMedicamento = deleteMedicamento;
 
-    // Arrancar
     init();
   </script>
 </body>
