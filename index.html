@@ -816,7 +816,7 @@
       font-size: 0.85rem;
     }
     .recordatorio-info strong {
-      color: var(--secondary-dark);
+      color: #7d6608;
     }
   </style>
 </head>
@@ -1105,7 +1105,16 @@
           <input type="file" id="fileInput" accept=".json" style="display:none;" />
           <button class="btn btn-danger btn-block" style="margin-top:12px;" id="btnBorrarTodo"><i class="fas fa-trash"></i> Borrar todos los datos</button>
         </div>
-        <!-- ELIMINADO el bloque de clave Groq (ya está fija en el código) -->
+        <!-- SECCIÓN DE CLAVE GROQ (ahora en localStorage) -->
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Clave Groq (IA)</span></div>
+          <div class="form-group">
+            <label>API Key Groq</label>
+            <input type="password" class="form-control" id="groqApiKey" placeholder="sk-..." />
+            <small style="color:var(--gray);">Obtén tu clave en console.groq.com. Solo el administrador debe ingresarla.</small>
+          </div>
+          <button class="btn btn-primary btn-block" id="btnGuardarGroq"><i class="fas fa-save"></i> Guardar clave</button>
+        </div>
       </div>
 
     </div>
@@ -1118,8 +1127,8 @@
       <button class="tab-item" data-tab="config"><i class="fas fa-cog"></i><span>Config</span></button>
     </nav>
 
-    <!-- BOTÓN FLOTANTE TELEGRAM (ahora manual/forzado) -->
-    <button class="telegram-float" id="btnTelegramFloat" title="Enviar recordatorio manual"><i class="fab fa-telegram-plane"></i></button>
+    <!-- BOTÓN FLOTANTE TELEGRAM -->
+    <button class="telegram-float" id="btnTelegramFloat" title="Enviar recordatorio manual / reporte diario"><i class="fab fa-telegram-plane"></i></button>
   </div>
 
   <!-- MODAL -->
@@ -1165,15 +1174,14 @@
     };
 
     let tgSettings = { token: '', chatId: '' };
-    // CLAVE GROQ FIJA (reemplázala con la tuya)
-    const groqApiKey = 'sk-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';
+    // La clave Groq se guarda en localStorage (ya no está fija)
 
     // ===== VARIABLES PARA RECORDATORIO AUTOMÁTICO =====
     let proximaDialisisTimestamp = null; // timestamp de la próxima diálisis
     let recordatorioEnviado = false;
 
     // ============================================================
-    //  FUNCIONES DE PERSISTENCIA (Firestore)
+    //  FUNCIONES DE PERSISTENCIA (Firestore + localStorage)
     // ============================================================
     const USUARIO_ID = 'paciente1';
 
@@ -1248,8 +1256,8 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           tgSettings = parsed;
-          $('#tgToken').value = parsed.token || '';
-          $('#tgChatId').value = parsed.chatId || '';
+          document.getElementById('tgToken').value = parsed.token || '';
+          document.getElementById('tgChatId').value = parsed.chatId || '';
         }
       } catch (e) { console.warn('Error cargando settings', e); }
     }
@@ -1260,11 +1268,25 @@
 
     const TG_SETTINGS_KEY = 'telegramSettings';
 
+    // Funciones para la clave Groq (localStorage)
+    function cargarClaveGroq() {
+      const key = localStorage.getItem('groqApiKey');
+      if (key) {
+        document.getElementById('groqApiKey').value = key;
+        return key;
+      }
+      return '';
+    }
+
+    function guardarClaveGroq(key) {
+      localStorage.setItem('groqApiKey', key);
+    }
+
     // ============================================================
     //  BADGE ONLINE / OFFLINE
     // ============================================================
     function actualizarBadgeOnline(online) {
-      const badge = $('#onlineBadge');
+      const badge = document.getElementById('onlineBadge');
       if (online) {
         badge.className = 'online-badge';
         badge.innerHTML = '<i class="fas fa-circle"></i> Online';
@@ -1281,7 +1303,7 @@
     const $$ = (s) => document.querySelectorAll(s);
 
     function showToast(message, type = 'info', duration = 3000) {
-      const container = $('#toastContainer');
+      const container = document.getElementById('toastContainer');
       const el = document.createElement('div');
       el.className = `toast ${type}`;
       const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle',
@@ -1299,13 +1321,13 @@
     //  MODAL
     // ============================================================
     function openModal(title, html) {
-      $('#modalTitleText').textContent = title;
-      $('#modalBody').innerHTML = html;
-      $('#modalOverlay').classList.add('open');
+      document.getElementById('modalTitleText').textContent = title;
+      document.getElementById('modalBody').innerHTML = html;
+      document.getElementById('modalOverlay').classList.add('open');
     }
-    function closeModal() { $('#modalOverlay').classList.remove('open'); }
-    $('#modalClose').addEventListener('click', closeModal);
-    $('#modalOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('modalOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
 
     // ============================================================
     //  UTILS
@@ -1352,13 +1374,13 @@
     // ============================================================
     function renderDashboard() {
       const hoy = getTodayDialisis();
-      $('#statDialisis').textContent = hoy.length;
-      $('#statMedicamentos').textContent = state.medicamentos.length;
+      document.getElementById('statDialisis').textContent = hoy.length;
+      document.getElementById('statMedicamentos').textContent = state.medicamentos.length;
       const low = getLowStockMeds();
-      $('#statAlertas').textContent = low.length;
+      document.getElementById('statAlertas').textContent = low.length;
 
       const ult = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
-      const elUlt = $('#ultimaDialisis');
+      const elUlt = document.getElementById('ultimaDialisis');
       if (ult) {
         const uf = (ult.ml || 0) - (ult.infusion_ml || 2000);
         const bagInfo = getBagInfo(ult.bolsa);
@@ -1380,7 +1402,7 @@
         elUlt.innerHTML = '<div class="empty-state"><i class="fas fa-clock"></i><p>Sin registros de diálisis</p></div>';
       }
 
-      const elStock = $('#stockBajoList');
+      const elStock = document.getElementById('stockBajoList');
       if (low.length === 0) {
         elStock.innerHTML =
           '<div style="color:var(--gray);font-size:0.85rem;padding:8px 0;">✅ Todos los medicamentos tienen stock suficiente</div>';
@@ -1396,7 +1418,7 @@
         `).join('');
       }
 
-      const alertsContainer = $('#alertsContainer');
+      const alertsContainer = document.getElementById('alertsContainer');
       const allAlerts = [];
       low.forEach(m => {
         allAlerts.push({ type: 'warning', msg: `⚠️ Stock bajo de <strong>${m.nombre}</strong> (${m.specialty}): quedan ${m.stock}` });
@@ -1436,7 +1458,7 @@
     //  RENDER: DIÁLISIS HISTORIAL
     // ============================================================
     function renderDialisisHistorial() {
-      const el = $('#historialDialisis');
+      const el = document.getElementById('historialDialisis');
       if (state.dialisis.length === 0) {
         el.innerHTML = '<div class="empty-state"><i class="fas fa-syringe"></i><p>No hay registros de diálisis</p></div>';
         return;
@@ -1515,7 +1537,7 @@
 
     function updateMedBadge() {
       const low = getLowStockMeds();
-      const badge = $('#medBadge');
+      const badge = document.getElementById('medBadge');
       if (low.length > 0) {
         badge.style.display = 'block';
         badge.textContent = low.length;
@@ -1538,16 +1560,13 @@
 
       // ===== PROGRAMAR RECORDATORIO AUTOMÁTICO =====
       if (data.proximaHora) {
-        // Combinar fecha de la diálisis con la hora de la próxima
         const fechaBase = new Date(`${data.fecha}T${data.proximaHora}`);
-        // Si la hora ya pasó hoy, asumimos que es mañana (por si registran después)
         if (fechaBase < new Date()) {
           fechaBase.setDate(fechaBase.getDate() + 1);
         }
         proximaDialisisTimestamp = fechaBase.getTime();
         recordatorioEnviado = false;
         localStorage.setItem('proximaDialisis', proximaDialisisTimestamp);
-        // Mostrar en la interfaz
         actualizarInfoRecordatorio();
         showToast(`⏰ Recordatorio programado para ${fechaBase.toLocaleTimeString()} (15 min antes)`, 'success');
       }
@@ -1587,10 +1606,10 @@
           <button type="submit" class="btn btn-primary btn-block">Actualizar stock</button>
         </form>
       `);
-      $('#formEditMed').addEventListener('submit', async function(e) {
+      document.getElementById('formEditMed').addEventListener('submit', async function(e) {
         e.preventDefault();
-        const newStock = parseInt($('#editMedStock').value);
-        const newUmbral = parseInt($('#editMedUmbral').value);
+        const newStock = parseInt(document.getElementById('editMedStock').value);
+        const newUmbral = parseInt(document.getElementById('editMedUmbral').value);
         if (isNaN(newStock) || newStock < 0) { showToast('Stock válido', 'error'); return; }
         med.stock = newStock;
         med.umbral = newUmbral;
@@ -1705,11 +1724,9 @@
       const ahora = Date.now();
       const diferencia = proximaDialisisTimestamp - ahora;
       const quinceMinutos = 15 * 60 * 1000;
-      // Si falta menos de 15 minutos y aún no se ha enviado
       if (diferencia <= quinceMinutos && diferencia > 0) {
         enviarRecordatorioTelegram();
       } else if (diferencia <= 0) {
-        // Si ya pasó la hora, limpiar
         proximaDialisisTimestamp = null;
         localStorage.removeItem('proximaDialisis');
         recordatorioEnviado = false;
@@ -1719,8 +1736,8 @@
 
     // ===== ACTUALIZAR INFO EN PANTALLA =====
     function actualizarInfoRecordatorio() {
-      const infoDiv = $('#recordatorioInfo');
-      const textoEl = $('#proximoRecordatorioTexto');
+      const infoDiv = document.getElementById('recordatorioInfo');
+      const textoEl = document.getElementById('proximoRecordatorioTexto');
       if (proximaDialisisTimestamp) {
         const fecha = new Date(proximaDialisisTimestamp);
         textoEl.textContent = fecha.toLocaleString();
@@ -1732,12 +1749,13 @@
     }
 
     // ============================================================
-    //  IA CON GROQ Y MICRÓFONO (sin cambios)
+    //  IA CON GROQ Y MICRÓFONO
     // ============================================================
     async function consultarGroq(pregunta) {
-      if (!groqApiKey || groqApiKey === 'sk-TU_CLAVE_AQUI') {
-        showToast('Configura tu clave de Groq en el código (variable groqApiKey)', 'warning');
-        return 'Por favor, configura la clave de Groq en el código.';
+      const groqApiKey = localStorage.getItem('groqApiKey');
+      if (!groqApiKey) {
+        showToast('Primero guarda tu clave de Groq en Configuración', 'warning');
+        return 'Por favor, ingresa tu clave de Groq en la pestaña Configuración.';
       }
       try {
         const ultima = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
@@ -1777,10 +1795,10 @@
       }
     }
 
-    $('#btnPreguntarIA').addEventListener('click', async function() {
-      const pregunta = $('#iaPregunta').value.trim();
+    document.getElementById('btnPreguntarIA').addEventListener('click', async function() {
+      const pregunta = document.getElementById('iaPregunta').value.trim();
       if (!pregunta) { showToast('Escribe una pregunta', 'warning'); return; }
-      const respuestaEl = $('#iaRespuesta');
+      const respuestaEl = document.getElementById('iaRespuesta');
       respuestaEl.textContent = 'Pensando...';
       const respuesta = await consultarGroq(pregunta);
       respuestaEl.textContent = respuesta;
@@ -1801,10 +1819,10 @@
 
       recognition.onresult = async (event) => {
         const pregunta = event.results[0][0].transcript;
-        $('#iaPregunta').value = pregunta;
+        document.getElementById('iaPregunta').value = pregunta;
         document.querySelector('.mic-btn').classList.remove('recording');
         showToast('🎤 Pregunta recibida: ' + pregunta, 'info');
-        const respuestaEl = $('#iaRespuesta');
+        const respuestaEl = document.getElementById('iaRespuesta');
         respuestaEl.textContent = 'Pensando...';
         const respuesta = await consultarGroq(pregunta);
         respuestaEl.textContent = respuesta;
@@ -1825,7 +1843,7 @@
       };
     }
 
-    $('#micBtn').addEventListener('click', function() {
+    document.getElementById('micBtn').addEventListener('click', function() {
       if (!recognition) {
         showToast('Tu navegador no soporta reconocimiento de voz', 'error');
         return;
@@ -1837,6 +1855,17 @@
       }
       this.classList.add('recording');
       recognition.start();
+    });
+
+    // Guardar clave Groq
+    document.getElementById('btnGuardarGroq').addEventListener('click', function() {
+      const key = document.getElementById('groqApiKey').value.trim();
+      if (key) {
+        guardarClaveGroq(key);
+        showToast('✅ Clave Groq guardada (local)', 'success');
+      } else {
+        showToast('Ingresa una clave válida', 'error');
+      }
     });
 
     // ============================================================
@@ -1887,10 +1916,10 @@
             <button type="submit" class="btn btn-primary btn-block">Guardar cambios</button>
           </form>
         `);
-        $('#formEditDoctor').addEventListener('submit', function(e) {
+        document.getElementById('formEditDoctor').addEventListener('submit', function(e) {
           e.preventDefault();
-          const nombre = $('#editDocNombre').value.trim();
-          const receta = $('#editDocReceta').value.trim();
+          const nombre = document.getElementById('editDocNombre').value.trim();
+          const receta = document.getElementById('editDocReceta').value.trim();
           if (!nombre) { showToast('El nombre es obligatorio', 'error'); return; }
           updateDoctorProfile(specialty, nombre, receta);
           closeModal();
@@ -1902,44 +1931,44 @@
     //  FORM: DIÁLISIS
     // ============================================================
     function updateBagInfo() {
-      const bolsa = $('#dialisisBolsa').value;
+      const bolsa = document.getElementById('dialisisBolsa').value;
       const bagInfo = getBagInfo(bolsa);
-      const elInfo = $('#nextDialysisTime');
+      const elInfo = document.getElementById('nextDialysisTime');
       if (elInfo) {
         elInfo.textContent = bagInfo.rango;
         if (bagInfo.color) {
           elInfo.textContent = `${bagInfo.rango} (Bolsa ${bagInfo.color})`;
         }
       }
-      const infusion = parseFloat($('#dialisisInfusion').value) || 0;
-      const drenado = parseFloat($('#dialisisMl').value) || 0;
+      const infusion = parseFloat(document.getElementById('dialisisInfusion').value) || 0;
+      const drenado = parseFloat(document.getElementById('dialisisMl').value) || 0;
       const uf = drenado - infusion;
-      const ufEl = $('#ufValue');
+      const ufEl = document.getElementById('ufValue');
       if (ufEl) {
         ufEl.textContent = uf;
         ufEl.className = 'value' + (uf < 0 ? ' negative' : '');
       }
     }
 
-    $('#dialisisBolsa').addEventListener('change', updateBagInfo);
-    $('#dialisisInfusion').addEventListener('input', updateBagInfo);
-    $('#dialisisMl').addEventListener('input', updateBagInfo);
+    document.getElementById('dialisisBolsa').addEventListener('change', updateBagInfo);
+    document.getElementById('dialisisInfusion').addEventListener('input', updateBagInfo);
+    document.getElementById('dialisisMl').addEventListener('input', updateBagInfo);
 
-    $('#formDialisis').addEventListener('submit', function(e) {
+    document.getElementById('formDialisis').addEventListener('submit', function(e) {
       e.preventDefault();
-      const fecha = $('#dialisisFecha').value;
-      const hora = $('#dialisisHora').value;
-      const bolsa = $('#dialisisBolsa').value;
-      const proximaHora = $('#dialisisProximaHora').value;
-      const infusion_ml = parseFloat($('#dialisisInfusion').value) || 2000;
-      const ml = parseFloat($('#dialisisMl').value);
-      const notas = $('#dialisisNotas').value.trim();
-      const presion_sis = parseInt($('#dialisisPresionSis').value) || null;
-      const presion_dia = parseInt($('#dialisisPresionDia').value) || null;
-      const glucosa = parseInt($('#dialisisGlucosa').value) || null;
+      const fecha = document.getElementById('dialisisFecha').value;
+      const hora = document.getElementById('dialisisHora').value;
+      const bolsa = document.getElementById('dialisisBolsa').value;
+      const proximaHora = document.getElementById('dialisisProximaHora').value;
+      const infusion_ml = parseFloat(document.getElementById('dialisisInfusion').value) || 2000;
+      const ml = parseFloat(document.getElementById('dialisisMl').value);
+      const notas = document.getElementById('dialisisNotas').value.trim();
+      const presion_sis = parseInt(document.getElementById('dialisisPresionSis').value) || null;
+      const presion_dia = parseInt(document.getElementById('dialisisPresionDia').value) || null;
+      const glucosa = parseInt(document.getElementById('dialisisGlucosa').value) || null;
 
       if (!fecha || !hora || !bolsa || !proximaHora || isNaN(ml) || ml < 0 || isNaN(infusion_ml) || infusion_ml < 0) {
-        showToast('Completa todos los campos obligatorios correctamente (incluye la hora de la próxima diálisis)', 'error');
+        showToast('Completa todos los campos obligatorios (incluye la hora de la próxima diálisis)', 'error');
         return;
       }
 
@@ -1948,50 +1977,47 @@
         notas });
 
       this.reset();
-      $('#dialisisFecha').value = todayStr();
+      document.getElementById('dialisisFecha').value = todayStr();
       const now = new Date();
-      $('#dialisisHora').value = now.toTimeString().slice(0, 5);
-      $('#dialisisInfusion').value = 2000;
-      $('#ufValue').textContent = '0';
-      $('#ufValue').className = 'value';
-      $('#nextDialysisTime').textContent = 'Selecciona una bolsa para ver el rango';
+      document.getElementById('dialisisHora').value = now.toTimeString().slice(0, 5);
+      document.getElementById('dialisisInfusion').value = 2000;
+      document.getElementById('ufValue').textContent = '0';
+      document.getElementById('ufValue').className = 'value';
+      document.getElementById('nextDialysisTime').textContent = 'Selecciona una bolsa para ver el rango';
     });
 
     // ============================================================
     //  FORM: TELEGRAM
     // ============================================================
-    $('#formTelegram').addEventListener('submit', function(e) {
+    document.getElementById('formTelegram').addEventListener('submit', function(e) {
       e.preventDefault();
-      tgSettings.token = $('#tgToken').value.trim();
-      tgSettings.chatId = $('#tgChatId').value.trim();
+      tgSettings.token = document.getElementById('tgToken').value.trim();
+      tgSettings.chatId = document.getElementById('tgChatId').value.trim();
       guardarSettingsLocales();
       showToast('✅ Configuración de Telegram guardada', 'success');
     });
-    $('#btnTestTelegram').addEventListener('click', async function() {
+    document.getElementById('btnTestTelegram').addEventListener('click', async function() {
       await sendTelegramMessage('🔔 <b>Mensaje de prueba</b>\n✅ Configuración de Telegram correcta.');
     });
 
     // ============================================================
     //  BOTONES FLOTANTES Y REFRESH
     // ============================================================
-    $('#btnTelegramFloat').addEventListener('click', function() {
+    document.getElementById('btnTelegramFloat').addEventListener('click', function() {
       if (!tgSettings.token || !tgSettings.chatId) {
         showToast('Configura Telegram en Configuración', 'warning');
         navigateTo('config');
         return;
       }
-      // Enviar recordatorio manual (si existe)
       if (proximaDialisisTimestamp) {
         enviarRecordatorioTelegram();
       } else {
-        // Si no hay recordatorio, enviar reporte diario
         checkAndSendTelegramAlert('reporte_diario');
       }
     });
 
-    $('#btnRefresh').addEventListener('click', async function() {
+    document.getElementById('btnRefresh').addEventListener('click', async function() {
       await cargarDesdeFirebase();
-      // Recuperar próxima diálisis guardada
       const guardado = localStorage.getItem('proximaDialisis');
       if (guardado) {
         const ts = parseInt(guardado);
@@ -2011,7 +2037,7 @@
     // ============================================================
     //  EXPORT / IMPORT
     // ============================================================
-    $('#btnExportarDatos').addEventListener('click', function() {
+    document.getElementById('btnExportarDatos').addEventListener('click', function() {
       const data = { version: '2.2', exportado: new Date().toISOString(), ...state };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -2022,8 +2048,9 @@
       URL.revokeObjectURL(url);
       showToast('📥 Datos exportados', 'success');
     });
-    $('#btnImportarDatos').addEventListener('click', function() { $('#fileInput').click(); });
-    $('#fileInput').addEventListener('change', async function(e) {
+    document.getElementById('btnImportarDatos').addEventListener('click', function() { document.getElementById('fileInput')
+        .click(); });
+    document.getElementById('fileInput').addEventListener('change', async function(e) {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
@@ -2042,7 +2069,7 @@
       this.value = '';
     });
 
-    $('#btnBorrarTodo').addEventListener('click', async function() {
+    document.getElementById('btnBorrarTodo').addEventListener('click', async function() {
       if (!confirm('¿Borrar TODOS los datos?') || !confirm('¿Estás completamente seguro?')) return;
       state.dialisis = [];
       state.medicamentos = [];
@@ -2103,11 +2130,14 @@
         }
       }
 
+      // Cargar clave Groq guardada
+      cargarClaveGroq();
+
       // Preparar formularios
-      $('#dialisisFecha').value = todayStr();
+      document.getElementById('dialisisFecha').value = todayStr();
       const now = new Date();
-      $('#dialisisHora').value = now.toTimeString().slice(0, 5);
-      $('#dialisisInfusion').value = 2000;
+      document.getElementById('dialisisHora').value = now.toTimeString().slice(0, 5);
+      document.getElementById('dialisisInfusion').value = 2000;
 
       // Activar sub-pestaña por defecto
       const firstSub = document.querySelector('.sub-tab-item');
@@ -2159,7 +2189,7 @@
           .then(() => console.log('✅ SW registrado'))
           .catch(err => console.warn('⚠️ SW no registrado:', err));
       }
-      console.log('🚀 App de Diálisis Peritoneal v2.2 con recordatorios automáticos');
+      console.log('🚀 App de Diálisis Peritoneal v2.2 con recordatorios automáticos y clave Groq en localStorage');
     }
 
     window.navigateTo = navigateTo;
