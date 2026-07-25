@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="icon-192.png" />
   <title>Diálisis Peritoneal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <!-- Firebase SDKs (versión compat) -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
@@ -53,7 +53,6 @@
       position: relative;
       overflow: hidden;
     }
-    /* ===== HEADER ===== */
     .app-header {
       background: var(--primary);
       color: #fff;
@@ -117,7 +116,6 @@
       background: var(--danger);
       box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
     }
-    /* ===== CONTENIDO ===== */
     .main-content {
       flex: 1;
       overflow-y: auto;
@@ -132,7 +130,6 @@
       background: var(--primary);
       border-radius: 8px;
     }
-    /* ===== BOTTOM TABS ===== */
     .tab-bar {
       display: flex;
       background: #fff;
@@ -188,7 +185,6 @@
       min-width: 16px;
       text-align: center;
     }
-    /* ===== PÁGINAS ===== */
     .page {
       display: none;
       animation: fadeIn 0.25s ease;
@@ -206,7 +202,6 @@
         transform: translateY(0);
       }
     }
-    /* ===== SUB-TABS (Especialistas) ===== */
     .sub-tab-bar {
       display: flex;
       background: #fff;
@@ -247,7 +242,6 @@
     .sub-page.active {
       display: block;
     }
-    /* ===== CARDS ===== */
     .card {
       background: #fff;
       border-radius: var(--radius);
@@ -289,7 +283,6 @@
       background: #f0f0f0;
       color: var(--dark);
     }
-    /* ===== FORMULARIOS ===== */
     .form-group {
       margin-bottom: 14px;
     }
@@ -409,7 +402,6 @@
       background: var(--primary);
       color: #fff;
     }
-    /* ===== LISTAS ===== */
     .list-item {
       display: flex;
       justify-content: space-between;
@@ -482,7 +474,10 @@
       color: var(--danger);
       background: #fde8e8;
     }
-    /* ===== ALERTAS ===== */
+    .list-item .actions .edit:hover {
+      color: var(--primary);
+      background: #e0f2f5;
+    }
     .alert {
       padding: 12px 16px;
       border-radius: 10px;
@@ -516,7 +511,6 @@
     .alert i {
       font-size: 1.2rem;
     }
-    /* ===== ESTADÍSTICAS ===== */
     .stats-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -558,7 +552,6 @@
     .empty-state p {
       font-size: 0.9rem;
     }
-    /* ===== MODAL ===== */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -616,7 +609,6 @@
     .modal .close-modal:hover {
       color: var(--dark);
     }
-    /* ===== TOAST ===== */
     .toast-container {
       position: fixed;
       bottom: 90px;
@@ -662,7 +654,6 @@
         transform: translateY(0) scale(1);
       }
     }
-    /* ===== RESPONSIVE ===== */
     @media (max-width: 420px) {
       .form-row {
         grid-template-columns: 1fr;
@@ -721,7 +712,6 @@
         right: calc(50% - 220px);
       }
     }
-    /* ===== INFO BOLSA ===== */
     .bag-info {
       background: var(--primary-light);
       border-radius: 10px;
@@ -758,7 +748,6 @@
     .ultrafiltration-result .value.negative {
       color: var(--danger);
     }
-    /* ===== IA ===== */
     .ia-container {
       display: flex;
       gap: 10px;
@@ -806,7 +795,6 @@
       50% { transform: scale(1.1); }
       100% { transform: scale(1); }
     }
-    /* ===== RECORDATORIO INFO ===== */
     .recordatorio-info {
       background: #fef9e7;
       border-left: 4px solid var(--secondary);
@@ -828,7 +816,6 @@
       <h1><i class="fas fa-kidney"></i> Diálisis</h1>
       <div class="header-actions">
         <span class="online-badge" id="onlineBadge"><i class="fas fa-circle"></i> Online</span>
-        <!-- ELIMINADO el botón de Telegram del header -->
         <button id="btnRefresh" title="Actualizar"><i class="fas fa-sync-alt"></i></button>
       </div>
     </header>
@@ -891,7 +878,6 @@
               <i class="fas fa-clock"></i> <strong>Próxima diálisis:</strong>
               <span id="nextDialysisTime">Selecciona una bolsa para ver el rango</span>
             </div>
-            <!-- NUEVO CAMPO: Hora de la próxima diálisis -->
             <div class="form-group">
               <label>Hora de la próxima diálisis <span class="label-hint">(se enviará recordatorio 15 min antes)</span></label>
               <input type="time" class="form-control" id="dialisisProximaHora" required />
@@ -912,7 +898,6 @@
             <div class="form-group"><label>Notas <span class="label-hint">(opcional)</span></label><input type="text" class="form-control" id="dialisisNotas" placeholder="Observaciones..." /></div>
             <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Guardar diálisis</button>
           </form>
-          <!-- Mostrar info del próximo recordatorio -->
           <div class="recordatorio-info" id="recordatorioInfo" style="display:none;">
             <i class="fas fa-bell"></i> <strong>Próximo recordatorio:</strong> <span id="proximoRecordatorioTexto">No programado</span>
           </div>
@@ -1105,7 +1090,6 @@
           <input type="file" id="fileInput" accept=".json" style="display:none;" />
           <button class="btn btn-danger btn-block" style="margin-top:12px;" id="btnBorrarTodo"><i class="fas fa-trash"></i> Borrar todos los datos</button>
         </div>
-        <!-- SECCIÓN DE CLAVE GROQ (ahora en localStorage) -->
         <div class="card">
           <div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Clave Groq (IA)</span></div>
           <div class="form-group">
@@ -1127,7 +1111,6 @@
       <button class="tab-item" data-tab="config"><i class="fas fa-cog"></i><span>Config</span></button>
     </nav>
 
-    <!-- BOTÓN FLOTANTE TELEGRAM -->
     <button class="telegram-float" id="btnTelegramFloat" title="Enviar recordatorio manual / reporte diario"><i class="fab fa-telegram-plane"></i></button>
   </div>
 
@@ -1144,7 +1127,7 @@
 
   <script>
     // ============================================================
-    //  CONFIGURACIÓN DE FIREBASE (ACTUALIZADA CON TUS DATOS)
+    //  CONFIGURACIÓN DE FIREBASE
     // ============================================================
     const firebaseConfig = {
       apiKey: "AIzaSyDaLu00dduGrwJeOvel8n4T3NhvH0e2kT0",
@@ -1160,7 +1143,7 @@
     const db = firebase.firestore();
 
     // ============================================================
-    //  ESTADO DE LA APLICACIÓN
+    //  ESTADO
     // ============================================================
     let state = {
       dialisis: [],
@@ -1174,14 +1157,11 @@
     };
 
     let tgSettings = { token: '', chatId: '' };
-    // La clave Groq se guarda en localStorage (ya no está fija)
-
-    // ===== VARIABLES PARA RECORDATORIO AUTOMÁTICO =====
-    let proximaDialisisTimestamp = null; // timestamp de la próxima diálisis
+    let proximaDialisisTimestamp = null;
     let recordatorioEnviado = false;
 
     // ============================================================
-    //  FUNCIONES DE PERSISTENCIA (Firestore + localStorage)
+    //  PERSISTENCIA (Firestore + localStorage)
     // ============================================================
     const USUARIO_ID = 'paciente1';
 
@@ -1268,7 +1248,6 @@
 
     const TG_SETTINGS_KEY = 'telegramSettings';
 
-    // Funciones para la clave Groq (localStorage)
     function cargarClaveGroq() {
       const key = localStorage.getItem('groqApiKey');
       if (key) {
@@ -1282,9 +1261,6 @@
       localStorage.setItem('groqApiKey', key);
     }
 
-    // ============================================================
-    //  BADGE ONLINE / OFFLINE
-    // ============================================================
     function actualizarBadgeOnline(online) {
       const badge = document.getElementById('onlineBadge');
       if (online) {
@@ -1297,7 +1273,7 @@
     }
 
     // ============================================================
-    //  DOM REFS Y TOAST
+    //  UTILS
     // ============================================================
     const $ = (s) => document.querySelector(s);
     const $$ = (s) => document.querySelectorAll(s);
@@ -1317,27 +1293,27 @@
       }, duration);
     }
 
-    // ============================================================
-    //  MODAL
-    // ============================================================
     function openModal(title, html) {
       document.getElementById('modalTitleText').textContent = title;
       document.getElementById('modalBody').innerHTML = html;
       document.getElementById('modalOverlay').classList.add('open');
     }
+
     function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
     document.getElementById('modalClose').addEventListener('click', closeModal);
     document.getElementById('modalOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
 
-    // ============================================================
-    //  UTILS
-    // ============================================================
     function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
     function formatDate(d) { const dt = new Date(d); return dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit',
         year: 'numeric' }); }
+
     function todayStr() { return new Date().toISOString().slice(0, 10); }
+
     function getTodayDialisis() { return state.dialisis.filter(d => d.fecha === todayStr()); }
+
     function getLowStockMeds() { return state.medicamentos.filter(m => m.stock <= m.umbral); }
+
     function getMedsBySpecialty(specialty) { return state.medicamentos.filter(m => m.specialty === specialty); }
 
     function getBagInfo(bolsa) {
@@ -1352,9 +1328,6 @@
       return map[bolsa] || { rango: 'consultar con médico', color: '' };
     }
 
-    // ============================================================
-    //  NAVEGACIÓN
-    // ============================================================
     function navigateTo(tabId) {
       $$('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
       $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page' + tabId.charAt(0).toUpperCase() + tabId.slice(
@@ -1370,7 +1343,7 @@
     }
 
     // ============================================================
-    //  RENDER: DASHBOARD
+    //  RENDER FUNCTIONS
     // ============================================================
     function renderDashboard() {
       const hoy = getTodayDialisis();
@@ -1454,9 +1427,6 @@
       }
     }
 
-    // ============================================================
-    //  RENDER: DIÁLISIS HISTORIAL
-    // ============================================================
     function renderDialisisHistorial() {
       const el = document.getElementById('historialDialisis');
       if (state.dialisis.length === 0) {
@@ -1482,16 +1452,14 @@
               ${d.notas ? `<div style="font-size:0.7rem;color:var(--gray);margin-top:2px;">📝 ${d.notas}</div>` : ''}
             </div>
             <div class="actions">
-              <button class="del" onclick="deleteDialisis('${d.id}')"><i class="fas fa-trash-alt"></i></button>
+              <button class="edit" onclick="editarDialisis('${d.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+              <button class="del" onclick="deleteDialisis('${d.id}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
             </div>
           </div>
         `;
       }).join('');
     }
 
-    // ============================================================
-    //  RENDER: SUB-PÁGINA RECETAS
-    // ============================================================
     function renderSubPage(specialty) {
       const subPage = document.querySelector(`.sub-page[data-specialty="${specialty}"]`);
       if (!subPage) return;
@@ -1546,8 +1514,21 @@
       }
     }
 
+    function actualizarInfoRecordatorio() {
+      const infoDiv = document.getElementById('recordatorioInfo');
+      const textoEl = document.getElementById('proximoRecordatorioTexto');
+      if (proximaDialisisTimestamp) {
+        const fecha = new Date(proximaDialisisTimestamp);
+        textoEl.textContent = fecha.toLocaleString();
+        infoDiv.style.display = 'block';
+      } else {
+        textoEl.textContent = 'No programado';
+        infoDiv.style.display = 'none';
+      }
+    }
+
     // ============================================================
-    //  CRUD: DIÁLISIS (con programación de recordatorio)
+    //  CRUD: DIÁLISIS (Create, Read, Update, Delete)
     // ============================================================
     async function addDialisis(data) {
       const entry = { id: generateId(), ...data, timestamp: Date.now() };
@@ -1558,7 +1539,6 @@
       renderDialisisHistorial();
       checkAndSendTelegramAlert('dialisis', entry);
 
-      // ===== PROGRAMAR RECORDATORIO AUTOMÁTICO =====
       if (data.proximaHora) {
         const fechaBase = new Date(`${data.fecha}T${data.proximaHora}`);
         if (fechaBase < new Date()) {
@@ -1573,6 +1553,109 @@
 
       showToast('✅ Diálisis registrada correctamente', 'success');
     }
+
+    // Función para editar diálisis
+    window.editarDialisis = function(id) {
+      const entry = state.dialisis.find(d => d.id === id);
+      if (!entry) {
+        showToast('Registro no encontrado', 'error');
+        return;
+      }
+
+      // Preparamos el HTML del modal con los campos precargados
+      const html = `
+        <form id="formEditDialisis">
+          <div class="form-row">
+            <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="editFecha" value="${entry.fecha}" required /></div>
+            <div class="form-group"><label>Hora</label><input type="time" class="form-control" id="editHora" value="${entry.hora}" required /></div>
+          </div>
+          <div class="form-group">
+            <label>Tipo de bolsa</label>
+            <select class="form-control" id="editBolsa" required>
+              <option value="1.5%" ${entry.bolsa === '1.5%' ? 'selected' : ''}>1.5% (Amarilla) - 4-6h</option>
+              <option value="2.5%" ${entry.bolsa === '2.5%' ? 'selected' : ''}>2.5% (Verde) - 6-8h</option>
+              <option value="4.25%" ${entry.bolsa === '4.25%' ? 'selected' : ''}>4.25% (Roja) - 8-12h</option>
+              <option value="Extraneal" ${entry.bolsa === 'Extraneal' ? 'selected' : ''}>Extraneal (Icodextrina)</option>
+              <option value="Nutrineal" ${entry.bolsa === 'Nutrineal' ? 'selected' : ''}>Nutrineal (Aminoácidos)</option>
+              <option value="Otra" ${entry.bolsa === 'Otra' ? 'selected' : ''}>Otra</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Hora de la próxima diálisis <span class="label-hint">(recordatorio 15 min antes)</span></label>
+            <input type="time" class="form-control" id="editProximaHora" value="${entry.proximaHora || ''}" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Volumen de infusión (ml)</label><input type="number" class="form-control" id="editInfusion" value="${entry.infusion_ml || 2000}" min="0" step="50" required /></div>
+            <div class="form-group"><label>Volumen drenado (ml)</label><input type="number" class="form-control" id="editMl" value="${entry.ml}" min="0" step="50" required /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Presión sistólica (mmHg)</label><input type="number" class="form-control" id="editPresionSis" value="${entry.presion_sis || ''}" min="0" step="1" /></div>
+            <div class="form-group"><label>Presión diastólica (mmHg)</label><input type="number" class="form-control" id="editPresionDia" value="${entry.presion_dia || ''}" min="0" step="1" /></div>
+          </div>
+          <div class="form-group"><label>Glucosa (mg/dL)</label><input type="number" class="form-control" id="editGlucosa" value="${entry.glucosa || ''}" min="0" step="1" /></div>
+          <div class="form-group"><label>Notas (opcional)</label><input type="text" class="form-control" id="editNotas" value="${entry.notas || ''}" /></div>
+          <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Actualizar</button>
+        </form>
+      `;
+
+      openModal('Editar diálisis', html);
+
+      // Evento del formulario de edición
+      document.getElementById('formEditDialisis').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const fecha = document.getElementById('editFecha').value;
+        const hora = document.getElementById('editHora').value;
+        const bolsa = document.getElementById('editBolsa').value;
+        const proximaHora = document.getElementById('editProximaHora').value;
+        const infusion_ml = parseFloat(document.getElementById('editInfusion').value) || 2000;
+        const ml = parseFloat(document.getElementById('editMl').value);
+        const presion_sis = parseInt(document.getElementById('editPresionSis').value) || null;
+        const presion_dia = parseInt(document.getElementById('editPresionDia').value) || null;
+        const glucosa = parseInt(document.getElementById('editGlucosa').value) || null;
+        const notas = document.getElementById('editNotas').value.trim();
+
+        if (!fecha || !hora || !bolsa || !proximaHora || isNaN(ml) || ml < 0 || isNaN(infusion_ml) || infusion_ml < 0) {
+          showToast('Completa todos los campos obligatorios', 'error');
+          return;
+        }
+
+        // Actualizar el registro en el estado
+        const index = state.dialisis.findIndex(d => d.id === id);
+        if (index !== -1) {
+          state.dialisis[index] = {
+            ...state.dialisis[index],
+            fecha,
+            hora,
+            bolsa,
+            proximaHora,
+            infusion_ml,
+            ml,
+            presion_sis,
+            presion_dia,
+            glucosa,
+            notas,
+            ultrafiltracion: ml - infusion_ml
+          };
+        }
+
+        await guardarEnFirebase();
+        renderDashboard();
+        renderDialisisHistorial();
+        closeModal();
+
+        // Actualizar el recordatorio si cambió la hora de la próxima diálisis
+        const fechaBase = new Date(`${fecha}T${proximaHora}`);
+        if (fechaBase < new Date()) {
+          fechaBase.setDate(fechaBase.getDate() + 1);
+        }
+        proximaDialisisTimestamp = fechaBase.getTime();
+        recordatorioEnviado = false;
+        localStorage.setItem('proximaDialisis', proximaDialisisTimestamp);
+        actualizarInfoRecordatorio();
+        showToast('✅ Diálisis actualizada correctamente', 'success');
+      });
+    };
 
     window.deleteDialisis = async function(id) {
       if (!confirm('¿Eliminar este registro de diálisis?')) return;
@@ -1632,9 +1715,6 @@
       showToast('Medicamento eliminado', 'info');
     };
 
-    // ============================================================
-    //  CRUD: PERFIL DE DOCTOR
-    // ============================================================
     async function updateDoctorProfile(specialty, nombre, receta) {
       if (state.doctores[specialty]) {
         state.doctores[specialty].nombre = nombre || state.doctores[specialty].nombre;
@@ -1697,7 +1777,6 @@
       if (msg) sendTelegramMessage(msg);
     }
 
-    // ===== FUNCIÓN PARA ENVIAR RECORDATORIO MANUAL O AUTOMÁTICO =====
     async function enviarRecordatorioTelegram() {
       if (!proximaDialisisTimestamp) {
         showToast('No hay una próxima diálisis programada', 'warning');
@@ -1718,7 +1797,6 @@
       }
     }
 
-    // ===== VERIFICACIÓN PERIÓDICA DEL RECORDATORIO =====
     function verificarRecordatorio() {
       if (!proximaDialisisTimestamp || recordatorioEnviado) return;
       const ahora = Date.now();
@@ -1731,20 +1809,6 @@
         localStorage.removeItem('proximaDialisis');
         recordatorioEnviado = false;
         actualizarInfoRecordatorio();
-      }
-    }
-
-    // ===== ACTUALIZAR INFO EN PANTALLA =====
-    function actualizarInfoRecordatorio() {
-      const infoDiv = document.getElementById('recordatorioInfo');
-      const textoEl = document.getElementById('proximoRecordatorioTexto');
-      if (proximaDialisisTimestamp) {
-        const fecha = new Date(proximaDialisisTimestamp);
-        textoEl.textContent = fecha.toLocaleString();
-        infoDiv.style.display = 'block';
-      } else {
-        textoEl.textContent = 'No programado';
-        infoDiv.style.display = 'none';
       }
     }
 
@@ -1857,7 +1921,6 @@
       recognition.start();
     });
 
-    // Guardar clave Groq
     document.getElementById('btnGuardarGroq').addEventListener('click', function() {
       const key = document.getElementById('groqApiKey').value.trim();
       if (key) {
@@ -1869,7 +1932,7 @@
     });
 
     // ============================================================
-    //  EVENTOS DE SUB-TABS Y FORMULARIOS
+    //  EVENTOS DE FORMULARIOS Y SUB-TABS
     // ============================================================
     document.querySelectorAll('.sub-tab-item').forEach(btn => {
       btn.addEventListener('click', function() {
@@ -1927,9 +1990,6 @@
       });
     });
 
-    // ============================================================
-    //  FORM: DIÁLISIS
-    // ============================================================
     function updateBagInfo() {
       const bolsa = document.getElementById('dialisisBolsa').value;
       const bagInfo = getBagInfo(bolsa);
@@ -1986,9 +2046,6 @@
       document.getElementById('nextDialysisTime').textContent = 'Selecciona una bolsa para ver el rango';
     });
 
-    // ============================================================
-    //  FORM: TELEGRAM
-    // ============================================================
     document.getElementById('formTelegram').addEventListener('submit', function(e) {
       e.preventDefault();
       tgSettings.token = document.getElementById('tgToken').value.trim();
@@ -1996,13 +2053,11 @@
       guardarSettingsLocales();
       showToast('✅ Configuración de Telegram guardada', 'success');
     });
+
     document.getElementById('btnTestTelegram').addEventListener('click', async function() {
       await sendTelegramMessage('🔔 <b>Mensaje de prueba</b>\n✅ Configuración de Telegram correcta.');
     });
 
-    // ============================================================
-    //  BOTONES FLOTANTES Y REFRESH
-    // ============================================================
     document.getElementById('btnTelegramFloat').addEventListener('click', function() {
       if (!tgSettings.token || !tgSettings.chatId) {
         showToast('Configura Telegram en Configuración', 'warning');
@@ -2034,11 +2089,8 @@
       showToast('🔄 Actualizado desde Firebase', 'info');
     });
 
-    // ============================================================
-    //  EXPORT / IMPORT
-    // ============================================================
     document.getElementById('btnExportarDatos').addEventListener('click', function() {
-      const data = { version: '2.2', exportado: new Date().toISOString(), ...state };
+      const data = { version: '2.3', exportado: new Date().toISOString(), ...state };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2048,8 +2100,10 @@
       URL.revokeObjectURL(url);
       showToast('📥 Datos exportados', 'success');
     });
+
     document.getElementById('btnImportarDatos').addEventListener('click', function() { document.getElementById('fileInput')
         .click(); });
+
     document.getElementById('fileInput').addEventListener('change', async function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -2116,7 +2170,6 @@
         showToast('⚠️ Trabajando en modo offline. Los datos se guardarán localmente.', 'warning');
       }
 
-      // Recuperar próxima diálisis guardada
       const guardado = localStorage.getItem('proximaDialisis');
       if (guardado) {
         const ts = parseInt(guardado);
@@ -2130,16 +2183,13 @@
         }
       }
 
-      // Cargar clave Groq guardada
       cargarClaveGroq();
 
-      // Preparar formularios
       document.getElementById('dialisisFecha').value = todayStr();
       const now = new Date();
       document.getElementById('dialisisHora').value = now.toTimeString().slice(0, 5);
       document.getElementById('dialisisInfusion').value = 2000;
 
-      // Activar sub-pestaña por defecto
       const firstSub = document.querySelector('.sub-tab-item');
       if (firstSub) {
         document.querySelectorAll('.sub-tab-item').forEach(b => b.classList.remove('active'));
@@ -2153,10 +2203,8 @@
       renderAll();
       navigateTo('dashboard');
 
-      // Iniciar intervalo de verificación de recordatorio (cada 30 segundos)
       setInterval(verificarRecordatorio, 30000);
 
-      // Recordatorios iniciales
       setTimeout(() => {
         const low = getLowStockMeds();
         if (low.length > 0 && tgSettings.token && tgSettings.chatId) {
@@ -2189,7 +2237,7 @@
           .then(() => console.log('✅ SW registrado'))
           .catch(err => console.warn('⚠️ SW no registrado:', err));
       }
-      console.log('🚀 App de Diálisis Peritoneal v2.2 con recordatorios automáticos y clave Groq en localStorage');
+      console.log('🚀 App de Diálisis Peritoneal v2.3 con edición de diálisis');
     }
 
     window.navigateTo = navigateTo;
