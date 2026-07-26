@@ -814,6 +814,27 @@
       50% { transform: scale(1.1); }
       100% { transform: scale(1); }
     }
+    .speech-btn {
+      background: var(--secondary);
+      color: #fff;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .speech-btn:hover {
+      background: #e67e22;
+    }
+    .speech-btn.muted {
+      background: var(--gray);
+      opacity: 0.6;
+    }
     /* ===== RECORDATORIO INFO ===== */
     .recordatorio-info {
       background: #fef9e7;
@@ -893,7 +914,7 @@
         <!-- Asistente IA -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title"><i class="fas fa-robot"></i> Asistente IA (Groq)</span>
+            <span class="card-title"><i class="fas fa-robot"></i> Asistente IA</span>
             <span class="ia-status" id="iaStatus">
               <span class="dot offline" id="iaDot"></span>
               <span id="iaStatusText">No configurada</span>
@@ -902,11 +923,9 @@
           <div class="ia-container">
             <input type="text" id="iaPregunta" class="form-control" placeholder="Ej: ¿A qué hora toca la siguiente diálisis?" />
             <button class="mic-btn" id="micBtn" title="Preguntar con voz"><i class="fas fa-microphone"></i></button>
+            <button class="speech-btn" id="speechToggle" title="Silenciar/Activar voz"><i class="fas fa-volume-up"></i></button>
           </div>
-          <div style="display:flex;gap:8px;margin-top:8px;">
-            <button class="btn btn-primary btn-block" id="btnPreguntarIA"><i class="fas fa-paper-plane"></i> Preguntar</button>
-            <button class="btn btn-secondary" id="btnProbarIA"><i class="fas fa-vial"></i> Probar IA</button>
-          </div>
+          <button class="btn btn-primary btn-block" id="btnPreguntarIA" style="margin-top:8px;"><i class="fas fa-paper-plane"></i> Preguntar</button>
           <div class="ia-response" id="iaRespuesta">Espera tu pregunta...</div>
         </div>
       </div>
@@ -1148,9 +1167,9 @@
           <button class="btn btn-danger btn-block" style="margin-top:12px;" id="btnBorrarTodo"><i class="fas fa-trash"></i> Borrar todos los datos</button>
         </div>
         <div class="card">
-          <div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Clave Groq (IA)</span></div>
+          <div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Clave IA</span></div>
           <div class="form-group">
-            <label>API Key Groq</label>
+            <label>API Key</label>
             <input type="password" class="form-control" id="groqApiKey" placeholder="sk-..." />
             <small style="color:var(--gray);">Obtén tu clave en console.groq.com. Solo el administrador debe ingresarla.</small>
           </div>
@@ -1217,7 +1236,8 @@
     let tgSettings = { token: '', chatId: '' };
     let proximaDialisisTimestamp = null;
     let recordatorioEnviado = false;
-    let editingDialisisId = null; // para saber si estamos editando
+    let editingDialisisId = null;
+    let speechEnabled = true; // Control de voz
 
     // ============================================================
     //  PERSISTENCIA
@@ -1577,7 +1597,6 @@
     async function updateDialisis(id, data) {
       const index = state.dialisis.findIndex(d => d.id === id);
       if (index === -1) return;
-      // Mantener timestamp original
       const originalTimestamp = state.dialisis[index].timestamp;
       state.dialisis[index] = { ...state.dialisis[index], ...data, timestamp: originalTimestamp };
       await guardarDatos();
@@ -1608,7 +1627,6 @@
       const d = state.dialisis.find(item => item.id === id);
       if (!d) return;
       editingDialisisId = id;
-      // Construir el modal con los campos llenos
       const html = `
         <form id="formEditDialisis" autocomplete="off">
           <div class="form-row">
@@ -1645,7 +1663,6 @@
       `;
       openModal('Editar diálisis', html);
 
-      // Evento del formulario de edición
       document.getElementById('formEditDialisis').addEventListener('submit', function(e) {
         e.preventDefault();
         const fecha = document.getElementById('editDialisisFecha').value;
@@ -1801,20 +1818,34 @@
     }
 
     // ============================================================
-    //  IA CON GROQ
+    //  IA CON GROQ (con modelo actualizado y mejor manejo de errores)
     // ============================================================
     async function consultarGroq(pregunta) {
       const groqApiKey = localStorage.getItem('groqApiKey');
       if (!groqApiKey) {
-        return 'ERROR: No hay clave Groq configurada. Ve a Configuración y guarda tu API Key.';
+        return 'ERROR: No hay clave de IA configurada. Ve a Configuración y guarda tu API Key.';
       }
       try {
+        // Construir contexto con la información de la próxima diálisis
         const ultima = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
         let contexto = '';
+        
+        // Información de la última diálisis
         if (ultima) {
           const uf = (ultima.ml || 0) - (ultima.infusion_ml || 2000);
           contexto += `Última diálisis: ${ultima.fecha} ${ultima.hora}, bolsa ${ultima.bolsa}, drenado ${ultima.ml} ml, ultrafiltración ${uf} ml. `;
+          
+          // INFORMACIÓN DE LA PRÓXIMA DIÁLISIS (guardada en el campo proximaHora)
+          if (ultima.proximaHora) {
+            contexto += `La PRÓXIMA DIÁLISIS está programada para las ${ultima.proximaHora} del día ${ultima.fecha}. `;
+          } else {
+            // Si no tiene proximaHora, calcular según el tipo de bolsa
+            const bagInfo = getBagInfo(ultima.bolsa);
+            contexto += `La PRÓXIMA DIÁLISIS debería ser en ${bagInfo.rango}. `;
+          }
         }
+        
+        // Información de medicamentos
         const meds = state.medicamentos.map(m => `${m.nombre} (${m.specialty}) stock ${m.stock}/${m.pillsBox}`).join(', ');
         if (meds) contexto += `Medicamentos: ${meds}. `;
 
@@ -1825,36 +1856,62 @@
             'Authorization': `Bearer ${groqApiKey}`
           },
           body: JSON.stringify({
+            // MODELO ACTUALIZADO - el anterior fue deprecado
             model: 'llama-3.3-70b-versatile',
             messages: [
-              { role: 'system', content: `Eres un asistente médico para pacientes de diálisis peritoneal. Respondes preguntas sobre horarios de diálisis, medicamentos, citas, etc. Basa tus respuestas en esta información: ${contexto}. Si no sabes algo, dices que no tienes esa información.` },
+              { 
+                role: 'system', 
+                content: `Eres un asistente médico para pacientes de diálisis peritoneal. Respondes preguntas sobre horarios de diálisis, medicamentos, citas, etc. 
+                Basa tus respuestas en esta información: ${contexto}. 
+                Si te preguntan por la próxima diálisis, usa la hora de proximaHora que está en los datos.
+                Si no sabes algo, dices que no tienes esa información.`
+              },
               { role: 'user', content: pregunta }
             ],
             temperature: 0.7,
             max_tokens: 300
           })
         });
-        const data = await response.json();
+
+        // VERIFICAR SI LA RESPUESTA ES EXITOSA
         if (!response.ok) {
-          console.error('Groq API error:', data);
-          const msg = data?.error?.message || `HTTP ${response.status}`;
-          return `ERROR: ${msg}`;
+          const errorData = await response.json();
+          console.error('Error de Groq:', errorData);
+          // Mostrar el mensaje de error real de Groq
+          const errorMsg = errorData.error?.message || 'Error desconocido';
+          return `❌ Error de IA: ${errorMsg}`;
         }
+
+        const data = await response.json();
         if (data.choices && data.choices.length > 0) {
           return data.choices[0].message.content;
         } else {
-          console.error('Respuesta inesperada de Groq:', data);
           return 'No pude procesar tu pregunta. Intenta de nuevo.';
         }
       } catch (e) {
-        console.error(e);
-        return 'Error al conectar con Groq. Revisa tu clave o la conexión.';
+        console.error('Error en consultarGroq:', e);
+        return `❌ Error al conectar con el servicio de IA: ${e.message}`;
       }
     }
 
     // ============================================================
-    //  EVENTOS: IA, MIC, TELEGRAM, ETC.
+    //  EVENTOS: IA, MIC, SILENCIAR VOZ, TELEGRAM, ETC.
     // ============================================================
+    
+    // Control de voz (silenciar/activar)
+    document.getElementById('speechToggle').addEventListener('click', function() {
+      speechEnabled = !speechEnabled;
+      if (speechEnabled) {
+        this.innerHTML = '<i class="fas fa-volume-up"></i>';
+        this.classList.remove('muted');
+        showToast('🔊 Voz activada', 'info');
+      } else {
+        this.innerHTML = '<i class="fas fa-volume-mute"></i>';
+        this.classList.add('muted');
+        showToast('🔇 Voz silenciada', 'info');
+      }
+    });
+
     document.getElementById('btnPreguntarIA').addEventListener('click', async function() {
       const pregunta = document.getElementById('iaPregunta').value.trim();
       if (!pregunta) { showToast('Escribe una pregunta', 'warning'); return; }
@@ -1863,45 +1920,29 @@
       const respuesta = await consultarGroq(pregunta);
       respuestaEl.textContent = respuesta;
       actualizarEstadoIA(respuesta);
-      if ('speechSynthesis' in window) {
+      
+      // Leer en voz alta solo si está activado
+      if (speechEnabled && 'speechSynthesis' in window && !respuesta.includes('ERROR') && !respuesta.includes('❌')) {
         const utterance = new SpeechSynthesisUtterance(respuesta);
         utterance.lang = 'es-ES';
         window.speechSynthesis.speak(utterance);
       }
     });
 
-    document.getElementById('btnProbarIA').addEventListener('click', async function() {
-      const respuestaEl = document.getElementById('iaRespuesta');
-      respuestaEl.textContent = 'Probando conexión con Groq...';
-      const testPregunta = 'Responde solo "OK" si estás funcionando.';
-      const respuesta = await consultarGroq(testPregunta);
-      if (respuesta.includes('ERROR')) {
-        respuestaEl.textContent = '❌ ' + respuesta;
-        actualizarEstadoIA(false);
-      } else {
-        respuestaEl.textContent = '✅ Conexión exitosa con Groq. Respuesta: ' + respuesta;
-        actualizarEstadoIA(true);
-      }
-    });
-
     function actualizarEstadoIA(ok) {
       const dot = document.getElementById('iaDot');
       const text = document.getElementById('iaStatusText');
-      if (ok === true) {
+      if (ok === true || (typeof ok === 'string' && !ok.includes('ERROR') && !ok.includes('❌'))) {
         dot.className = 'dot online';
         text.textContent = 'Conectada';
-      } else if (ok === false) {
-        dot.className = 'dot offline';
-        text.textContent = 'Error';
       } else {
-        // Si es string, puede ser un mensaje de error
         const key = localStorage.getItem('groqApiKey');
         if (!key) {
           dot.className = 'dot offline';
           text.textContent = 'No configurada';
         } else {
-          dot.className = 'dot online';
-          text.textContent = 'Conectada';
+          dot.className = 'dot offline';
+          text.textContent = 'Error';
         }
       }
     }
@@ -1925,7 +1966,7 @@
         const respuesta = await consultarGroq(pregunta);
         respuestaEl.textContent = respuesta;
         actualizarEstadoIA(respuesta);
-        if ('speechSynthesis' in window) {
+        if (speechEnabled && 'speechSynthesis' in window && !respuesta.includes('ERROR') && !respuesta.includes('❌')) {
           const utterance = new SpeechSynthesisUtterance(respuesta);
           utterance.lang = 'es-ES';
           window.speechSynthesis.speak(utterance);
@@ -1961,7 +2002,7 @@
       const key = document.getElementById('groqApiKey').value.trim();
       if (key) {
         localStorage.setItem('groqApiKey', key);
-        showToast('✅ Clave Groq guardada (local)', 'success');
+        showToast('✅ Clave de IA guardada', 'success');
         actualizarEstadoIA(true);
       } else {
         showToast('Ingresa una clave válida', 'error');
@@ -2086,7 +2127,7 @@
       });
     });
 
-    // CRUD para medicamentos (breve)
+    // CRUD para medicamentos
     async function addMedicamento(data) {
       const entry = { id: generateId(), ...data, timestamp: Date.now() };
       state.medicamentos.push(entry);
@@ -2192,7 +2233,7 @@
     //  EXPORT / IMPORT / BORRAR
     // ============================================================
     document.getElementById('btnExportarDatos').addEventListener('click', function() {
-      const data = { version: '2.2', exportado: new Date().toISOString(), ...state };
+      const data = { version: '2.3', exportado: new Date().toISOString(), ...state };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2255,7 +2296,6 @@
       if (activeSub) renderSubPage(activeSub.dataset.specialty);
       updateMedBadge();
       actualizarInfoRecordatorio();
-      // Actualizar estado de IA
       const key = localStorage.getItem('groqApiKey');
       if (key) actualizarEstadoIA(true);
       else actualizarEstadoIA(false);
@@ -2339,7 +2379,7 @@
           .then(() => console.log('✅ SW registrado'))
           .catch(err => console.warn('⚠️ SW no registrado:', err));
       }
-      console.log('🚀 App de Diálisis Peritoneal v2.2 con edición y prueba de IA');
+      console.log('🚀 App de Diálisis Peritoneal v2.3 - IA con modelo actualizado y respuesta de próxima diálisis');
     }
 
     window.navigateTo = navigateTo;
