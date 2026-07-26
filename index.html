@@ -1825,7 +1825,7 @@
             'Authorization': `Bearer ${groqApiKey}`
           },
           body: JSON.stringify({
-            model: 'llama3-70b-8192',
+            model: 'llama-3.3-70b-versatile',
             messages: [
               { role: 'system', content: `Eres un asistente médico para pacientes de diálisis peritoneal. Respondes preguntas sobre horarios de diálisis, medicamentos, citas, etc. Basa tus respuestas en esta información: ${contexto}. Si no sabes algo, dices que no tienes esa información.` },
               { role: 'user', content: pregunta }
@@ -1835,9 +1835,15 @@
           })
         });
         const data = await response.json();
+        if (!response.ok) {
+          console.error('Groq API error:', data);
+          const msg = data?.error?.message || `HTTP ${response.status}`;
+          return `ERROR: ${msg}`;
+        }
         if (data.choices && data.choices.length > 0) {
           return data.choices[0].message.content;
         } else {
+          console.error('Respuesta inesperada de Groq:', data);
           return 'No pude procesar tu pregunta. Intenta de nuevo.';
         }
       } catch (e) {
