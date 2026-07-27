@@ -112,6 +112,7 @@
     .list-item .info .sub { font-size: 0.75rem; color: var(--gray); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
     .list-item .info .sub .tag { background: var(--primary-light); color: var(--primary-dark); padding: 0 10px; border-radius: 20px; font-size: 0.65rem; font-weight: 600; display: inline-block; }
     .list-item .info .sub .badge-time { background: #fef9e7; color: #7d6608; padding: 0 8px; border-radius: 20px; font-size: 0.6rem; font-weight: 600; }
+    .list-item .info .sub .recordatorio-enviado { background: #27ae60; color: #fff; padding: 0 8px; border-radius: 20px; font-size: 0.6rem; font-weight: 600; }
     .list-item .actions { display: flex; gap: 6px; flex-shrink: 0; margin-top: 4px; }
     .list-item .actions button { background: none; border: none; color: var(--gray); cursor: pointer; padding: 4px 6px; border-radius: 6px; transition: var(--transition); font-size: 0.9rem; }
     .list-item .actions button:hover { background: #f0f0f0; color: var(--dark); }
@@ -171,6 +172,8 @@
     .ia-status .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     .ia-status .dot.online { background: var(--success); }
     .ia-status .dot.offline { background: var(--danger); }
+    .btn-enviar-recordatorio { background: var(--secondary); color: #fff; }
+    .btn-enviar-recordatorio:hover { background: #e67e22; }
   </style>
 </head>
 <body>
@@ -201,6 +204,16 @@
         <div class="card">
           <div class="card-header"><span class="card-title"><i class="fas fa-pills"></i> Medicamentos con stock bajo</span></div>
           <div id="stockBajoList">Sin alertas de stock</div>
+        </div>
+        <!-- RECORDATORIO MANUAL -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fas fa-bell"></i> Recordatorio de diálisis</span>
+            <button class="btn btn-sm btn-enviar-recordatorio" id="btnForzarRecordatorio"><i class="fas fa-paper-plane"></i> Enviar ahora</button>
+          </div>
+          <div id="estadoRecordatorio" style="font-size:0.85rem;color:var(--gray);">
+            No hay recordatorios pendientes
+          </div>
         </div>
         <div class="card">
           <div class="card-header">
@@ -281,7 +294,6 @@
           <button class="sub-tab-item" data-specialty="medicina_interna"><i class="fas fa-stethoscope"></i> M. Interna</button>
         </div>
         <div id="subPagesContainer">
-          <!-- Sub-páginas (resumidas para ahorrar espacio) -->
           <div class="sub-page active" data-specialty="angiologia">
             <div class="card doctor-profile">
               <div class="card-header">
@@ -379,10 +391,8 @@
       medicina_interna: { nombre: 'Medicina Interna', especialidad: 'Medicina Interna', receta: '' }
     }};
     let tgSettings = { token: '', chatId: '' };
-    let proximaDialisisTimestamp = null;
-    let recordatorioEnviado = false;
-    let editingDialisisId = null;
     let speechEnabled = true;
+    let recordatorioIntervalId = null;
 
     // ============================================================
     //  PERSISTENCIA
@@ -630,9 +640,12 @@
       } else {
         alertsContainer.innerHTML = allAlerts.map(a => `<div class="alert alert-${a.type}"><i class="fas fa-bell"></i> ${a.msg}</div>`).join('');
       }
+
+      // Actualizar estado del recordatorio
+      actualizarEstadoRecordatorio();
     }
 
-    // ===== HISTORIAL DE DIÁLISIS - CORREGIDO =====
+    // ===== HISTORIAL DE DIÁLISIS =====
     function renderDialisisHistorial() {
       const el = document.getElementById('historialDialisis');
       if (state.dialisis.length === 0) {
@@ -640,23 +653,25 @@
         return;
       }
 
-      // Ordenar por timestamp descendente (más reciente primero)
       const sorted = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp);
       
       el.innerHTML = sorted.map(d => {
         const uf = (d.ml || 0) - (d.infusion_ml || 2000);
         const bagInfo = getBagInfo(d.bolsa);
+        const recordatorioEnviado = d.recordatorioEnviado || false;
         return `
           <div class="list-item">
             <div class="info">
-              <div class="title">${formatDate(d.fecha)} ${d.hora} <span class="tag">${d.bolsa}</span></div>
+              <div class="title">${formatDate(d.fecha)} ${d.hora} <span class="tag">${d.bolsa}</span>
+                ${recordatorioEnviado ? '<span class="recordatorio-enviado">📨 Enviado</span>' : ''}
+              </div>
               <div class="sub">
                 <span>💧 Drenado: <strong>${d.ml} ml</strong></span>
                 <span>⏳ Infusión: <strong>${d.infusion_ml || 2000} ml</strong></span>
                 <span style="font-weight:600;color:${uf >= 0 ? 'var(--success)' : 'var(--danger)'};">📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml</span>
                 ${d.presion_sis ? `<span>❤️ ${d.presion_sis}/${d.presion_dia || '?'} mmHg</span>` : ''}
                 ${d.glucosa ? `<span>🩸 ${d.glucosa} mg/dL</span>` : ''}
-                <span class="badge-time">⏰ ${bagInfo.rango}</span>
+                <span class="badge-time">⏰ Próxima: ${d.proximaHora || 'No definida'}</span>
               </div>
               ${d.notas ? `<div style="font-size:0.7rem;color:var(--gray);margin-top:2px;">📝 ${d.notas}</div>` : ''}
             </div>
@@ -722,20 +737,18 @@
     }
 
     // ============================================================
-    //  CRUD: DIÁLISIS - CORREGIDO
+    //  CRUD: DIÁLISIS
     // ============================================================
     async function addDialisis(data) {
-      const entry = { id: generateId(), ...data, timestamp: Date.now() };
+      const entry = { id: generateId(), ...data, timestamp: Date.now(), recordatorioEnviado: false };
       state.dialisis.push(entry);
       await guardarDatos();
       renderDashboard();
       renderDialisisHistorial();
       checkAndSendTelegramAlert('dialisis', entry);
-      if (data.proximaHora) programarRecordatorio(data.fecha, data.proximaHora);
       showToast('✅ Diálisis registrada correctamente', 'success');
     }
 
-    // ===== UPDATE DIALISIS - CORREGIDO =====
     async function updateDialisis(id, data) {
       const index = state.dialisis.findIndex(d => d.id === id);
       if (index === -1) {
@@ -743,30 +756,18 @@
         return;
       }
 
-      // Calcular nuevo timestamp con la fecha/hora editada
       const nuevaFechaHora = new Date(`${data.fecha}T${data.hora}`).getTime();
       
-      // Actualizar el objeto en el estado
       state.dialisis[index] = {
         ...state.dialisis[index],
         ...data,
         timestamp: nuevaFechaHora
       };
 
-      // Guardar en Firebase
       await guardarDatos();
-      
-      // Recargar desde Firebase para asegurar consistencia
       await cargarDesdeFirebase();
-      
-      // Renderizar todo
       renderDashboard();
       renderDialisisHistorial();
-      
-      // Reprogramar recordatorio si cambió la próxima hora
-      if (data.proximaHora) {
-        programarRecordatorio(data.fecha, data.proximaHora);
-      }
       
       showToast('✅ Diálisis actualizada correctamente', 'success');
     }
@@ -864,71 +865,199 @@
       });
     };
 
-    // ============================================================
-    //  PROGRAMAR RECORDATORIO
-    // ============================================================
-    function programarRecordatorio(fecha, hora) {
-      const fechaBase = new Date(`${fecha}T${hora}`);
-      if (fechaBase < new Date()) {
-        fechaBase.setDate(fechaBase.getDate() + 1);
-      }
-      proximaDialisisTimestamp = fechaBase.getTime();
-      recordatorioEnviado = false;
-      localStorage.setItem('proximaDialisis', proximaDialisisTimestamp);
-      actualizarInfoRecordatorio();
-      showToast(`⏰ Recordatorio programado para ${fechaBase.toLocaleString()} (15 min antes)`, 'success');
-    }
-
-    function actualizarInfoRecordatorio() {
-      const infoDiv = document.getElementById('recordatorioInfo');
-      const textoEl = document.getElementById('proximoRecordatorioTexto');
-      if (proximaDialisisTimestamp) {
-        const fecha = new Date(proximaDialisisTimestamp);
-        textoEl.textContent = fecha.toLocaleString();
-        infoDiv.style.display = 'block';
-      } else {
-        textoEl.textContent = 'No programado';
-        infoDiv.style.display = 'none';
-      }
-    }
+    let editingDialisisId = null;
 
     // ============================================================
-    //  VERIFICACIÓN DE RECORDATORIO (cada 30s)
+    //  RECORDATORIO AUTOMÁTICO (cada 30 segundos)
     // ============================================================
-    function verificarRecordatorio() {
-      if (!proximaDialisisTimestamp || recordatorioEnviado) return;
+    function iniciarVerificadorRecordatorio() {
+      if (recordatorioIntervalId) {
+        clearInterval(recordatorioIntervalId);
+      }
+      recordatorioIntervalId = setInterval(verificarYEnviarRecordatorios, 30000);
+      console.log('🔄 Verificador de recordatorios iniciado (cada 30s)');
+    }
+
+    async function verificarYEnviarRecordatorios() {
+      console.log('🔍 Verificando recordatorios pendientes...');
+      
+      // Recargar datos desde Firebase para tener la información más reciente
+      await cargarDesdeFirebase();
+      
       const ahora = Date.now();
-      const diferencia = proximaDialisisTimestamp - ahora;
       const quinceMinutos = 15 * 60 * 1000;
-      if (diferencia <= quinceMinutos && diferencia > 0) {
-        enviarRecordatorioTelegram();
-      } else if (diferencia <= 0) {
-        proximaDialisisTimestamp = null;
-        localStorage.removeItem('proximaDialisis');
-        recordatorioEnviado = false;
-        actualizarInfoRecordatorio();
+      const cincoMinutos = 5 * 60 * 1000;
+      let enviados = 0;
+
+      for (const d of state.dialisis) {
+        // Verificar si tiene campo proximaHora
+        if (!d.proximaHora) continue;
+
+        // Verificar si ya fue enviado
+        if (d.recordatorioEnviado) continue;
+
+        // Construir fecha y hora de la próxima diálisis
+        const fechaHora = new Date(`${d.fecha}T${d.proximaHora}`);
+        const timestamp = fechaHora.getTime();
+
+        // Si la fecha ya pasó, saltar
+        if (timestamp < ahora) continue;
+
+        // Calcular diferencia
+        const diff = timestamp - ahora;
+
+        // Si falta menos de 15 minutos y más de 0
+        if (diff <= quinceMinutos && diff > 0) {
+          console.log(`⏰ Enviando recordatorio para ${d.fecha} ${d.proximaHora} (falta ${Math.round(diff/60000)} min)`);
+          
+          const msg = 
+            `⏰ <b>¡Recordatorio de diálisis!</b>\n\n` +
+            `La próxima diálisis está programada para el <b>${new Date(timestamp).toLocaleDateString('es-ES')}</b> a las <b>${new Date(timestamp).toLocaleTimeString('es-ES')}</b>.\n` +
+            `Bolsa: ${d.bolsa || 'No especificada'}\n` +
+            `Volumen drenado: ${d.ml || '?'} ml\n` +
+            `Ultrafiltración: ${(d.ml || 0) - (d.infusion_ml || 2000)} ml\n` +
+            `¡Prepárate para tu diálisis! 🩺`;
+
+          const enviado = await sendTelegramMessage(msg);
+          
+          if (enviado) {
+            // Marcar como enviado en el estado
+            d.recordatorioEnviado = true;
+            d.recordatorioEnviadoEn = new Date().toISOString();
+            enviados++;
+            
+            // Guardar en Firebase
+            await guardarDatos();
+            renderDialisisHistorial();
+            actualizarEstadoRecordatorio();
+            showToast('✅ Recordatorio enviado a Telegram', 'success');
+          }
+        }
+      }
+
+      if (enviados > 0) {
+        console.log(`✅ ${enviados} recordatorios enviados`);
       }
     }
 
-    async function enviarRecordatorioTelegram() {
-      if (!proximaDialisisTimestamp) {
-        showToast('No hay una próxima diálisis programada', 'warning');
-        return;
+    // ============================================================
+    //  ESTADO DEL RECORDATORIO (en el dashboard)
+    // ============================================================
+    function actualizarEstadoRecordatorio() {
+      const estadoEl = document.getElementById('estadoRecordatorio');
+      const ahora = Date.now();
+      const quinceMinutos = 15 * 60 * 1000;
+      
+      // Buscar la próxima diálisis pendiente
+      let proxima = null;
+      let diffMin = Infinity;
+
+      for (const d of state.dialisis) {
+        if (!d.proximaHora) continue;
+        if (d.recordatorioEnviado) continue;
+        
+        const fechaHora = new Date(`${d.fecha}T${d.proximaHora}`);
+        const timestamp = fechaHora.getTime();
+        const diff = timestamp - ahora;
+        
+        if (diff > 0 && diff < diffMin) {
+          diffMin = diff;
+          proxima = d;
+        }
       }
-      const ultima = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
-      if (!ultima) {
-        showToast('No hay diálisis registrada', 'warning');
-        return;
-      }
-      const fechaProxima = new Date(proximaDialisisTimestamp);
-      const msg =
-        `⏰ <b>Recordatorio de diálisis</b>\nLa próxima diálisis está programada para el <b>${fechaProxima.toLocaleDateString('es-ES')}</b> a las <b>${fechaProxima.toLocaleTimeString('es-ES')}</b>.\nÚltima registrada: ${ultima.fecha} ${ultima.hora} (${ultima.bolsa})\n¡Prepárate!`;
-      const ok = await sendTelegramMessage(msg);
-      if (ok) {
-        recordatorioEnviado = true;
-        showToast('✅ Recordatorio enviado a Telegram', 'success');
+
+      if (proxima) {
+        const fecha = new Date(`${proxima.fecha}T${proxima.proximaHora}`);
+        const diff = diffMin;
+        const minutos = Math.round(diff / 60000);
+        const horas = Math.floor(minutos / 60);
+        const mins = minutos % 60;
+        
+        let tiempoTexto = '';
+        if (horas > 0) {
+          tiempoTexto = `${horas}h ${mins}min`;
+        } else {
+          tiempoTexto = `${mins} minutos`;
+        }
+
+        const dentro15 = diff <= quinceMinutos;
+        
+        estadoEl.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <span>
+              <strong>Próxima diálisis:</strong> 
+              ${fecha.toLocaleDateString('es-ES')} ${fecha.toLocaleTimeString('es-ES')}
+              <span style="display:inline-block;background:${dentro15 ? 'var(--danger)' : 'var(--secondary)'};color:#fff;padding:0 10px;border-radius:20px;font-size:0.7rem;margin-left:8px;">
+                ${dentro15 ? '🔔 ¡PRONTO!' : `en ${tiempoTexto}`}
+              </span>
+            </span>
+            ${dentro15 ? '<span style="color:var(--danger);font-weight:600;">⏰ Se enviará recordatorio automáticamente</span>' : ''}
+          </div>
+        `;
+      } else {
+        // Verificar si hay alguna diálisis programada que ya pasó
+        const pendientes = state.dialisis.filter(d => d.proximaHora && !d.recordatorioEnviado);
+        if (pendientes.length > 0) {
+          estadoEl.innerHTML = `
+            <div style="color:var(--warning);">
+              ⚠️ Hay ${pendientes.length} diálisis pendientes que ya pasaron su hora programada. 
+              Verifica el historial.
+            </div>
+          `;
+        } else {
+          estadoEl.innerHTML = '✅ No hay recordatorios pendientes. ¡Todo en orden!';
+        }
       }
     }
+
+    // ============================================================
+    //  FORZAR ENVÍO DE RECORDATORIO (Botón manual)
+    // ============================================================
+    document.getElementById('btnForzarRecordatorio').addEventListener('click', async function() {
+      if (!tgSettings.token || !tgSettings.chatId) {
+        showToast('Configura Telegram en la pestaña Configuración', 'warning');
+        navigateTo('config');
+        return;
+      }
+
+      const ahora = Date.now();
+      const quinceMinutos = 15 * 60 * 1000;
+      let enviado = false;
+
+      for (const d of state.dialisis) {
+        if (!d.proximaHora) continue;
+        if (d.recordatorioEnviado) continue;
+        
+        const fechaHora = new Date(`${d.fecha}T${d.proximaHora}`);
+        const timestamp = fechaHora.getTime();
+        const diff = timestamp - ahora;
+        
+        if (diff <= quinceMinutos && diff > 0) {
+          const msg = 
+            `⏰ <b>¡Recordatorio de diálisis! (ENVÍO MANUAL)</b>\n\n` +
+            `La próxima diálisis está programada para el <b>${new Date(timestamp).toLocaleDateString('es-ES')}</b> a las <b>${new Date(timestamp).toLocaleTimeString('es-ES')}</b>.\n` +
+            `Bolsa: ${d.bolsa || 'No especificada'}\n` +
+            `Volumen drenado: ${d.ml || '?'} ml\n` +
+            `¡Prepárate para tu diálisis! 🩺`;
+
+          const ok = await sendTelegramMessage(msg);
+          if (ok) {
+            d.recordatorioEnviado = true;
+            d.recordatorioEnviadoEn = new Date().toISOString();
+            await guardarDatos();
+            renderDialisisHistorial();
+            actualizarEstadoRecordatorio();
+            enviado = true;
+            showToast('✅ Recordatorio enviado manualmente', 'success');
+            break;
+          }
+        }
+      }
+
+      if (!enviado) {
+        showToast('No hay recordatorios pendientes (dentro de los próximos 15 minutos)', 'info');
+      }
+    });
 
     // ============================================================
     //  TELEGRAM
@@ -948,13 +1077,15 @@
         });
         const data = await resp.json();
         if (data.ok) {
-          showToast('📨 Mensaje enviado a Telegram', 'success');
+          console.log('📨 Mensaje enviado a Telegram');
           return true;
         } else {
+          console.error('Error de Telegram:', data.description);
           showToast('Error: ' + (data.description || 'desconocido'), 'error');
           return false;
         }
       } catch (e) {
+        console.error('Error enviando Telegram:', e);
         showToast('Error de red', 'error');
         return false;
       }
@@ -967,30 +1098,12 @@
         const uf = (data.ml || 0) - (data.infusion_ml || 2000);
         const bagInfo = getBagInfo(data.bolsa);
         msg =
-          `🩺 <b>Nueva diálisis registrada</b>\n📅 ${data.fecha} ${data.hora}\n💉 Bolsa: ${data.bolsa}\n🧪 Drenado: ${data.ml} ml\n⏳ Infusión: ${data.infusion_ml || 2000} ml\n📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml\n⏰ Próxima: ${bagInfo.rango}`;
+          `🩺 <b>Nueva diálisis registrada</b>\n📅 ${data.fecha} ${data.hora}\n💉 Bolsa: ${data.bolsa}\n🧪 Drenado: ${data.ml} ml\n⏳ Infusión: ${data.infusion_ml || 2000} ml\n📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml\n⏰ Próxima: ${data.proximaHora || 'No definida'}`;
         if (data.presion_sis) msg += `\n❤️ Presión: ${data.presion_sis}/${data.presion_dia || '?'} mmHg`;
         if (data.glucosa) msg += `\n🩸 Glucosa: ${data.glucosa} mg/dL`;
         if (data.notas) msg += `\n📝 Notas: ${data.notas}`;
-      } else if (type === 'medicamento_bajo') {
-        msg =
-          `⚠️ <b>¡Stock bajo de medicamento!</b>\n💊 ${data.nombre}\n📦 Stock: ${data.stock} / ${data.pillsBox}\n🔔 Umbral: ${data.umbral}\n👨‍⚕️ Especialista: ${data.specialty || 'N/A'}`;
-      } else if (type === 'reporte_diario') {
-        const hoy = getTodayDialisis().length;
-        const lowMeds = getLowStockMeds();
-        msg = `📋 <b>Reporte diario</b>\n🩺 Diálisis hoy: ${hoy}\n💊 Medicamentos: ${state.medicamentos.length}\n⚠️ Stock bajo: ${lowMeds.length}`;
-        if (lowMeds.length > 0) {
-          msg += '\n\n🔻 <b>Medicamentos con stock bajo:</b>\n' + lowMeds.map(m =>
-            `- ${m.nombre} (${m.specialty}): ${m.stock}`).join('\n');
-        }
-        const ult = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
-        if (ult) {
-          const uf = (ult.ml || 0) - (ult.infusion_ml || 2000);
-          const bagInfo = getBagInfo(ult.bolsa);
-          msg +=
-            `\n\n🕐 <b>Última diálisis:</b> ${ult.fecha} ${ult.hora}\n💉 ${ult.bolsa} · UF: ${uf >= 0 ? '+' : ''}${uf} ml\n⏰ Próxima: ${bagInfo.rango}`;
-        }
+        sendTelegramMessage(msg);
       }
-      if (msg) sendTelegramMessage(msg);
     }
 
     // ============================================================
@@ -1232,7 +1345,7 @@
     });
 
     // ============================================================
-    //  EVENTOS: SUB-TABS, MEDICAMENTOS, DOCTORES, TELEGRAM
+    //  EVENTOS: SUB-TABS, MEDICAMENTOS, DOCTORES
     // ============================================================
     document.querySelectorAll('.sub-tab-item').forEach(btn => {
       btn.addEventListener('click', function() {
@@ -1299,7 +1412,10 @@
       await guardarEnFirebase();
       renderSubPage(entry.specialty);
       renderDashboard();
-      if (entry.stock <= entry.umbral) checkAndSendTelegramAlert('medicamento_bajo', entry);
+      if (entry.stock <= entry.umbral) {
+        const msg = `⚠️ <b>¡Stock bajo de medicamento!</b>\n💊 ${entry.nombre}\n📦 Stock: ${entry.stock} / ${entry.pillsBox}\n🔔 Umbral: ${entry.umbral}\n👨‍⚕️ Especialista: ${entry.specialty || 'N/A'}`;
+        sendTelegramMessage(msg);
+      }
       showToast(`✅ ${entry.nombre} agregado (${entry.specialty})`, 'success');
     }
 
@@ -1328,7 +1444,10 @@
         renderDashboard();
         closeModal();
         showToast(`Stock de ${med.nombre} actualizado a ${newStock}`, 'success');
-        if (med.stock <= med.umbral) checkAndSendTelegramAlert('medicamento_bajo', med);
+        if (med.stock <= med.umbral) {
+          const msg = `⚠️ <b>¡Stock bajo de medicamento!</b>\n💊 ${med.nombre}\n📦 Stock: ${med.stock} / ${med.pillsBox}\n🔔 Umbral: ${med.umbral}`;
+          sendTelegramMessage(msg);
+        }
       });
     };
 
@@ -1372,27 +1491,24 @@
         navigateTo('config');
         return;
       }
-      if (proximaDialisisTimestamp) {
-        enviarRecordatorioTelegram();
-      } else {
-        checkAndSendTelegramAlert('reporte_diario');
+      // Enviar reporte diario
+      const hoy = getTodayDialisis().length;
+      const lowMeds = getLowStockMeds();
+      let msg = `📋 <b>Reporte diario</b>\n🩺 Diálisis hoy: ${hoy}\n💊 Medicamentos: ${state.medicamentos.length}\n⚠️ Stock bajo: ${lowMeds.length}`;
+      if (lowMeds.length > 0) {
+        msg += '\n\n🔻 <b>Medicamentos con stock bajo:</b>\n' + lowMeds.map(m => `- ${m.nombre} (${m.specialty}): ${m.stock}`).join('\n');
       }
+      const ult = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp)[0];
+      if (ult) {
+        const uf = (ult.ml || 0) - (ult.infusion_ml || 2000);
+        const bagInfo = getBagInfo(ult.bolsa);
+        msg += `\n\n🕐 <b>Última diálisis:</b> ${ult.fecha} ${ult.hora}\n💉 ${ult.bolsa} · UF: ${uf >= 0 ? '+' : ''}${uf} ml\n⏰ Próxima: ${bagInfo.rango}`;
+      }
+      sendTelegramMessage(msg);
     });
 
     document.getElementById('btnRefresh').addEventListener('click', async function() {
       await cargarDesdeFirebase();
-      const guardado = localStorage.getItem('proximaDialisis');
-      if (guardado) {
-        const ts = parseInt(guardado);
-        if (ts > Date.now()) {
-          proximaDialisisTimestamp = ts;
-          recordatorioEnviado = false;
-          actualizarInfoRecordatorio();
-        } else {
-          localStorage.removeItem('proximaDialisis');
-          proximaDialisisTimestamp = null;
-        }
-      }
       renderAll();
       showToast('🔄 Actualizado desde Firebase', 'info');
     });
@@ -1401,7 +1517,7 @@
     //  EXPORT / IMPORT / BORRAR
     // ============================================================
     document.getElementById('btnExportarDatos').addEventListener('click', function() {
-      const data = { version: '2.3', exportado: new Date().toISOString(), ...state };
+      const data = { version: '2.4', exportado: new Date().toISOString(), ...state };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1468,7 +1584,7 @@
       const activeSub = document.querySelector('.sub-tab-item.active');
       if (activeSub) renderSubPage(activeSub.dataset.specialty);
       updateMedBadge();
-      actualizarInfoRecordatorio();
+      actualizarEstadoRecordatorio();
       const key = localStorage.getItem('groqApiKey');
       if (key) actualizarEstadoIA(true);
       else actualizarEstadoIA(false);
@@ -1485,28 +1601,6 @@
       if (!online) {
         cargarDesdeLocalStorage();
         showToast('⚠️ Trabajando en modo offline. Los datos se guardarán localmente.', 'warning');
-      }
-
-      // Recuperar recordatorio pendiente
-      const guardado = localStorage.getItem('proximaDialisis');
-      if (guardado) {
-        const ts = parseInt(guardado);
-        if (ts > Date.now()) {
-          proximaDialisisTimestamp = ts;
-          recordatorioEnviado = false;
-          actualizarInfoRecordatorio();
-          const diff = ts - Date.now();
-          if (diff <= 15 * 60 * 1000 && diff > 0) {
-            setTimeout(() => {
-              enviarRecordatorioTelegram();
-            }, 3000);
-          }
-          showToast(`⏰ Recordatorio pendiente para ${new Date(ts).toLocaleString()}`, 'info');
-        } else {
-          localStorage.removeItem('proximaDialisis');
-          proximaDialisisTimestamp = null;
-          showToast('⚠️ La próxima diálisis ya pasó. Registra una nueva.', 'warning');
-        }
       }
 
       document.getElementById('dialisisFecha').value = todayStr();
@@ -1527,12 +1621,16 @@
       renderAll();
       navigateTo('dashboard');
 
-      setInterval(verificarRecordatorio, 30000);
+      // INICIAR EL VERIFICADOR DE RECORDATORIOS
+      iniciarVerificadorRecordatorio();
 
       setTimeout(() => {
         const low = getLowStockMeds();
         if (low.length > 0 && tgSettings.token && tgSettings.chatId) {
-          low.forEach(m => checkAndSendTelegramAlert('medicamento_bajo', m));
+          low.forEach(m => {
+            const msg = `⚠️ <b>¡Stock bajo de medicamento!</b>\n💊 ${m.nombre}\n📦 Stock: ${m.stock} / ${m.pillsBox}\n🔔 Umbral: ${m.umbral}`;
+            sendTelegramMessage(msg);
+          });
         }
         if (getTodayDialisis().length === 0) {
           showToast('📋 Recuerda registrar tu diálisis de hoy', 'info');
@@ -1544,7 +1642,7 @@
           .then(() => console.log('✅ SW registrado'))
           .catch(err => console.warn('⚠️ SW no registrado:', err));
       }
-      console.log('🚀 App de Diálisis Peritoneal v2.3 - Edición corregida');
+      console.log('🚀 App de Diálisis Peritoneal v2.4 - Recordatorios automáticos mejorados');
     }
 
     window.navigateTo = navigateTo;
