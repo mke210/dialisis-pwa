@@ -105,6 +105,8 @@
     .btn-success:hover { background: #1e8449; }
     .btn-block { width: 100%; justify-content: center; }
     .btn-sm { padding: 6px 14px; font-size: 0.75rem; border-radius: 8px; }
+    .btn-warning { background: var(--secondary); color: #fff; }
+    .btn-warning:hover { background: #e67e22; }
     .list-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #f0f4f8; gap: 10px; }
     .list-item:last-child { border-bottom: none; }
     .list-item .info { flex: 1; min-width: 0; }
@@ -113,6 +115,7 @@
     .list-item .info .sub .tag { background: var(--primary-light); color: var(--primary-dark); padding: 0 10px; border-radius: 20px; font-size: 0.65rem; font-weight: 600; display: inline-block; }
     .list-item .info .sub .badge-time { background: #fef9e7; color: #7d6608; padding: 0 8px; border-radius: 20px; font-size: 0.6rem; font-weight: 600; }
     .list-item .info .sub .recordatorio-enviado { background: #27ae60; color: #fff; padding: 0 8px; border-radius: 20px; font-size: 0.6rem; font-weight: 600; }
+    .list-item .info .sub .recordatorio-pendiente { background: var(--secondary); color: #fff; padding: 0 8px; border-radius: 20px; font-size: 0.6rem; font-weight: 600; }
     .list-item .actions { display: flex; gap: 6px; flex-shrink: 0; margin-top: 4px; }
     .list-item .actions button { background: none; border: none; color: var(--gray); cursor: pointer; padding: 4px 6px; border-radius: 6px; transition: var(--transition); font-size: 0.9rem; }
     .list-item .actions button:hover { background: #f0f0f0; color: var(--dark); }
@@ -172,6 +175,21 @@
     .ia-status .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     .ia-status .dot.online { background: var(--success); }
     .ia-status .dot.offline { background: var(--danger); }
+    .config-sub-tab-bar {
+      display: flex; background: #fff; border-radius: var(--radius);
+      box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden;
+      border: 1px solid #edf2f7;
+    }
+    .config-sub-tab-item {
+      flex: 1; padding: 10px 4px; text-align: center; font-size: 0.65rem;
+      font-weight: 600; color: var(--gray); border: none; background: transparent;
+      cursor: pointer; transition: var(--transition); border-bottom: 3px solid transparent;
+      letter-spacing: 0.2px; text-transform: uppercase;
+    }
+    .config-sub-tab-item.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--primary-light); }
+    .config-sub-tab-item i { margin-right: 4px; font-size: 0.8rem; }
+    .config-sub-page { display: none; animation: fadeIn 0.2s ease; }
+    .config-sub-page.active { display: block; }
     .btn-enviar-recordatorio { background: var(--secondary); color: #fff; }
     .btn-enviar-recordatorio:hover { background: #e67e22; }
   </style>
@@ -205,7 +223,6 @@
           <div class="card-header"><span class="card-title"><i class="fas fa-pills"></i> Medicamentos con stock bajo</span></div>
           <div id="stockBajoList">Sin alertas de stock</div>
         </div>
-        <!-- RECORDATORIO MANUAL -->
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fas fa-bell"></i> Recordatorio de diálisis</span>
@@ -343,9 +360,71 @@
       </div>
       <!-- CONFIG -->
       <div class="page" id="pageConfig">
-        <div class="card"><div class="card-header"><span class="card-title"><i class="fab fa-telegram"></i> Telegram</span></div><form id="formTelegram"><div class="form-group"><label>Bot Token</label><input type="text" class="form-control" id="tgToken" placeholder="123456:ABC-DEF..." /></div><div class="form-group"><label>Chat ID</label><input type="text" class="form-control" id="tgChatId" placeholder="123456789" /></div><button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Guardar</button><button type="button" class="btn btn-secondary btn-block" id="btnTestTelegram" style="margin-top:8px;"><i class="fas fa-paper-plane"></i> Probar</button></form></div>
-        <div class="card"><div class="card-header"><span class="card-title"><i class="fas fa-database"></i> Datos</span></div><button class="btn btn-secondary btn-block" id="btnExportarDatos"><i class="fas fa-download"></i> Exportar JSON</button><button class="btn btn-secondary btn-block" style="margin-top:8px;" id="btnImportarDatos"><i class="fas fa-upload"></i> Importar JSON</button><input type="file" id="fileInput" accept=".json" style="display:none;" /><button class="btn btn-danger btn-block" style="margin-top:12px;" id="btnBorrarTodo"><i class="fas fa-trash"></i> Borrar todos los datos</button></div>
-        <div class="card"><div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Clave IA</span></div><div class="form-group"><label>API Key</label><input type="password" class="form-control" id="groqApiKey" placeholder="sk-..." /><small style="color:var(--gray);">Obtén tu clave en console.groq.com</small></div><button class="btn btn-primary btn-block" id="btnGuardarGroq"><i class="fas fa-save"></i> Guardar clave</button></div>
+        <!-- Sub-tabs de Configuración -->
+        <div class="config-sub-tab-bar" id="configSubTabBar">
+          <button class="config-sub-tab-item active" data-configtab="telegram"><i class="fab fa-telegram"></i> Telegram</button>
+          <button class="config-sub-tab-item" data-configtab="recordatorios"><i class="fas fa-bell"></i> Recordatorios</button>
+          <button class="config-sub-tab-item" data-configtab="datos"><i class="fas fa-database"></i> Datos</button>
+          <button class="config-sub-tab-item" data-configtab="ia"><i class="fas fa-key"></i> IA</button>
+        </div>
+
+        <!-- Sub-página: Telegram -->
+        <div class="config-sub-page active" data-configtab="telegram">
+          <div class="card"><div class="card-header"><span class="card-title"><i class="fab fa-telegram"></i> Telegram</span></div>
+            <form id="formTelegram">
+              <div class="form-group"><label>Bot Token</label><input type="text" class="form-control" id="tgToken" placeholder="123456:ABC-DEF..." /></div>
+              <div class="form-group"><label>Chat ID</label><input type="text" class="form-control" id="tgChatId" placeholder="123456789" /></div>
+              <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Guardar</button>
+              <button type="button" class="btn btn-secondary btn-block" id="btnTestTelegram" style="margin-top:8px;"><i class="fas fa-paper-plane"></i> Probar</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Sub-página: Recordatorios (NUEVA) -->
+        <div class="config-sub-page" data-configtab="recordatorios">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fas fa-plus-circle"></i> Crear recordatorio de prueba</span>
+            </div>
+            <form id="formRecordatorioPrueba">
+              <div class="form-group">
+                <label>Fecha y hora del recordatorio <span class="label-hint">(se enviará a esa hora)</span></label>
+                <input type="datetime-local" class="form-control" id="recordatorioFechaHora" required />
+              </div>
+              <div class="form-group">
+                <label>Mensaje</label>
+                <textarea class="form-control" id="recordatorioMensaje" rows="3" placeholder="Ej: Recuerda tomar tu medicamento...">⏰ ¡Recordatorio de diálisis! Prepárate para tu sesión. 🩺</textarea>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Crear recordatorio</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fas fa-list"></i> Mis recordatorios de prueba</span>
+              <button class="btn btn-sm btn-danger" id="btnEliminarTodosRecordatorios">Eliminar todos</button>
+            </div>
+            <div id="listaRecordatoriosPrueba">No hay recordatorios de prueba creados.</div>
+          </div>
+        </div>
+
+        <!-- Sub-página: Datos -->
+        <div class="config-sub-page" data-configtab="datos">
+          <div class="card"><div class="card-header"><span class="card-title"><i class="fas fa-database"></i> Datos</span></div>
+            <button class="btn btn-secondary btn-block" id="btnExportarDatos"><i class="fas fa-download"></i> Exportar JSON</button>
+            <button class="btn btn-secondary btn-block" style="margin-top:8px;" id="btnImportarDatos"><i class="fas fa-upload"></i> Importar JSON</button>
+            <input type="file" id="fileInput" accept=".json" style="display:none;" />
+            <button class="btn btn-danger btn-block" style="margin-top:12px;" id="btnBorrarTodo"><i class="fas fa-trash"></i> Borrar todos los datos</button>
+          </div>
+        </div>
+
+        <!-- Sub-página: IA -->
+        <div class="config-sub-page" data-configtab="ia">
+          <div class="card"><div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Clave IA</span></div>
+            <div class="form-group"><label>API Key</label><input type="password" class="form-control" id="groqApiKey" placeholder="sk-..." /><small style="color:var(--gray);">Obtén tu clave en console.groq.com</small></div>
+            <button class="btn btn-primary btn-block" id="btnGuardarGroq"><i class="fas fa-save"></i> Guardar clave</button>
+          </div>
+        </div>
       </div>
     </div>
     <nav class="tab-bar" id="tabBar">
@@ -359,7 +438,7 @@
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal" id="modalContent">
       <button class="close-modal" id="modalClose">&times;</button>
-      <h2 id="modalTitle"><i class="fas fa-edit"></i> <span id="modalTitleText">Editar diálisis</span></h2>
+      <h2 id="modalTitle"><i class="fas fa-edit"></i> <span id="modalTitleText">Editar</span></h2>
       <div id="modalBody"></div>
     </div>
   </div>
@@ -390,9 +469,11 @@
       nefrologia: { nombre: 'Nefrólogo', especialidad: 'Nefrología', receta: '' },
       medicina_interna: { nombre: 'Medicina Interna', especialidad: 'Medicina Interna', receta: '' }
     }};
+    let recordatoriosPrueba = [];
     let tgSettings = { token: '', chatId: '' };
     let speechEnabled = true;
     let recordatorioIntervalId = null;
+    let editingRecordatorioId = null;
 
     // ============================================================
     //  PERSISTENCIA
@@ -400,6 +481,7 @@
     const USUARIO_ID = 'paciente1';
     const STORAGE_KEY = 'dialisisPeritonealData';
     const TG_SETTINGS_KEY = 'telegramSettings';
+    const RECORDATORIOS_KEY = 'recordatoriosPrueba';
 
     async function cargarDesdeFirebase() {
       try {
@@ -414,6 +496,7 @@
             if (d.ultrafiltracion === undefined) d.ultrafiltracion = (d.ml || 0) - (d.infusion_ml || 2000);
           });
           cargarSettingsLocales();
+          cargarRecordatoriosPrueba();
           return true;
         } else {
           await db.collection('pacientes').doc(USUARIO_ID).set({
@@ -482,6 +565,25 @@
       localStorage.setItem(TG_SETTINGS_KEY, JSON.stringify(tgSettings));
     }
 
+    function cargarRecordatoriosPrueba() {
+      try {
+        const raw = localStorage.getItem(RECORDATORIOS_KEY);
+        if (raw) {
+          recordatoriosPrueba = JSON.parse(raw);
+        } else {
+          recordatoriosPrueba = [];
+        }
+      } catch (e) { recordatoriosPrueba = []; }
+      renderRecordatoriosPrueba();
+    }
+
+    function guardarRecordatoriosPrueba() {
+      try {
+        localStorage.setItem(RECORDATORIOS_KEY, JSON.stringify(recordatoriosPrueba));
+      } catch (e) { console.warn('Error guardando recordatorios', e); }
+      renderRecordatoriosPrueba();
+    }
+
     function actualizarBadgeOnline(online) {
       const badge = document.getElementById('onlineBadge');
       if (online) {
@@ -528,6 +630,7 @@
 
     function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
     function formatDate(d) { const dt = new Date(d); return dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+    function formatDateTime(d) { const dt = new Date(d); return dt.toLocaleString('es-ES'); }
     function todayStr() { return new Date().toISOString().slice(0, 10); }
     function getTodayDialisis() { return state.dialisis.filter(d => d.fecha === todayStr()); }
     function getLowStockMeds() { return state.medicamentos.filter(m => m.stock <= m.umbral); }
@@ -558,6 +661,9 @@
         updateMedBadge();
         const activeSub = document.querySelector('.sub-tab-item.active');
         if (activeSub) renderSubPage(activeSub.dataset.specialty);
+      }
+      if (tabId === 'config') {
+        renderRecordatoriosPrueba();
       }
     }
 
@@ -641,7 +747,6 @@
         alertsContainer.innerHTML = allAlerts.map(a => `<div class="alert alert-${a.type}"><i class="fas fa-bell"></i> ${a.msg}</div>`).join('');
       }
 
-      // Actualizar estado del recordatorio
       actualizarEstadoRecordatorio();
     }
 
@@ -737,179 +842,223 @@
     }
 
     // ============================================================
-    //  CRUD: DIÁLISIS
+    //  RENDER: RECORDATORIOS DE PRUEBA
     // ============================================================
-    async function addDialisis(data) {
-      const entry = { id: generateId(), ...data, timestamp: Date.now(), recordatorioEnviado: false };
-      state.dialisis.push(entry);
-      await guardarDatos();
-      renderDashboard();
-      renderDialisisHistorial();
-      checkAndSendTelegramAlert('dialisis', entry);
-      showToast('✅ Diálisis registrada correctamente', 'success');
-    }
-
-    async function updateDialisis(id, data) {
-      const index = state.dialisis.findIndex(d => d.id === id);
-      if (index === -1) {
-        showToast('Error: No se encontró el registro', 'error');
+    function renderRecordatoriosPrueba() {
+      const el = document.getElementById('listaRecordatoriosPrueba');
+      if (!el) return;
+      
+      if (recordatoriosPrueba.length === 0) {
+        el.innerHTML = 'No hay recordatorios de prueba creados.';
         return;
       }
 
-      const nuevaFechaHora = new Date(`${data.fecha}T${data.hora}`).getTime();
-      
-      state.dialisis[index] = {
-        ...state.dialisis[index],
-        ...data,
-        timestamp: nuevaFechaHora
+      // Ordenar por fecha (más cercano primero)
+      const sorted = recordatoriosPrueba.slice().sort((a, b) => a.timestamp - b.timestamp);
+
+      el.innerHTML = sorted.map(r => {
+        const ahora = Date.now();
+        const enviado = r.enviado || false;
+        const pendiente = r.timestamp > ahora && !enviado;
+        const yaPasado = r.timestamp < ahora && !enviado;
+        
+        let estadoText = '';
+        let estadoClass = '';
+        if (enviado) {
+          estadoText = '✅ Enviado';
+          estadoClass = 'recordatorio-enviado';
+        } else if (pendiente) {
+          estadoText = '⏳ Pendiente';
+          estadoClass = 'recordatorio-pendiente';
+        } else if (yaPasado) {
+          estadoText = '⏰ Vencido';
+          estadoClass = 'badge-time';
+        }
+
+        return `
+          <div class="list-item">
+            <div class="info">
+              <div class="title">
+                ${r.mensaje || 'Recordatorio de prueba'}
+                <span class="${estadoClass}" style="font-size:0.6rem;padding:2px 8px;border-radius:20px;display:inline-block;margin-left:6px;">${estadoText}</span>
+              </div>
+              <div class="sub">
+                <span>📅 ${formatDateTime(r.timestamp)}</span>
+                ${r.enviadoEn ? `<span>📨 Enviado: ${formatDateTime(r.enviadoEn)}</span>` : ''}
+              </div>
+            </div>
+            <div class="actions">
+              <button class="edit" onclick="editarRecordatorioPrueba('${r.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+              <button class="del" onclick="eliminarRecordatorioPrueba('${r.id}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ============================================================
+    //  CRUD: RECORDATORIOS DE PRUEBA
+    // ============================================================
+    function agregarRecordatorioPrueba(fechaHora, mensaje) {
+      const timestamp = new Date(fechaHora).getTime();
+      const recordatorio = {
+        id: generateId(),
+        timestamp: timestamp,
+        mensaje: mensaje || '⏰ ¡Recordatorio de diálisis! Prepárate para tu sesión. 🩺',
+        enviado: false,
+        creadoEn: new Date().toISOString()
       };
+      recordatoriosPrueba.push(recordatorio);
+      guardarRecordatoriosPrueba();
+      showToast('✅ Recordatorio de prueba creado', 'success');
+    }
 
-      await guardarDatos();
-      await cargarDesdeFirebase();
-      renderDashboard();
-      renderDialisisHistorial();
+    function editarRecordatorioPrueba(id) {
+      const r = recordatoriosPrueba.find(item => item.id === id);
+      if (!r) return;
       
-      showToast('✅ Diálisis actualizada correctamente', 'success');
-    }
-
-    window.deleteDialisis = async function(id) {
-      if (!confirm('¿Eliminar este registro de diálisis?')) return;
-      state.dialisis = state.dialisis.filter(d => d.id !== id);
-      await guardarDatos();
-      renderDashboard();
-      renderDialisisHistorial();
-      showToast('Registro eliminado', 'info');
-    };
-
-    async function guardarDatos() {
-      const ok = await guardarEnFirebase();
-      if (!ok) guardarEnLocalStorage();
-    }
-
-    // ============================================================
-    //  EDITAR DIÁLISIS (Modal)
-    // ============================================================
-    window.abrirEditarDialisis = function(id) {
-      const d = state.dialisis.find(item => item.id === id);
-      if (!d) return;
-      editingDialisisId = id;
+      editingRecordatorioId = id;
+      const fecha = new Date(r.timestamp);
+      const fechaStr = fecha.toISOString().slice(0, 16);
+      
       const html = `
-        <form id="formEditDialisis" autocomplete="off">
-          <div class="form-row">
-            <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="editDialisisFecha" value="${d.fecha}" required /></div>
-            <div class="form-group"><label>Hora</label><input type="time" class="form-control" id="editDialisisHora" value="${d.hora}" required /></div>
+        <form id="formEditRecordatorio">
+          <div class="form-group">
+            <label>Fecha y hora del recordatorio</label>
+            <input type="datetime-local" class="form-control" id="editRecordatorioFecha" value="${fechaStr}" required />
           </div>
           <div class="form-group">
-            <label>Tipo de bolsa</label>
-            <select class="form-control" id="editDialisisBolsa" required>
-              <option value="1.5%" ${d.bolsa==='1.5%'?'selected':''}>1.5% (Amarilla) - 4-6h</option>
-              <option value="2.5%" ${d.bolsa==='2.5%'?'selected':''}>2.5% (Verde) - 6-8h</option>
-              <option value="4.25%" ${d.bolsa==='4.25%'?'selected':''}>4.25% (Roja) - 8-12h</option>
-              <option value="Extraneal" ${d.bolsa==='Extraneal'?'selected':''}>Extraneal (Icodextrina)</option>
-              <option value="Nutrineal" ${d.bolsa==='Nutrineal'?'selected':''}>Nutrineal (Aminoácidos)</option>
-              <option value="Otra" ${d.bolsa==='Otra'?'selected':''}>Otra</option>
-            </select>
+            <label>Mensaje</label>
+            <textarea class="form-control" id="editRecordatorioMensaje" rows="3">${r.mensaje || ''}</textarea>
           </div>
-          <div class="form-group">
-            <label>Hora de la próxima diálisis <span class="label-hint">(se enviará recordatorio 15 min antes)</span></label>
-            <input type="time" class="form-control" id="editDialisisProximaHora" value="${d.proximaHora || ''}" required />
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Volumen de infusión (ml)</label><input type="number" class="form-control" id="editDialisisInfusion" value="${d.infusion_ml || 2000}" min="0" step="50" required /></div>
-            <div class="form-group"><label>Volumen drenado (ml)</label><input type="number" class="form-control" id="editDialisisMl" value="${d.ml || ''}" min="0" step="50" required /></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Presión sistólica (mmHg)</label><input type="number" class="form-control" id="editDialisisPresionSis" value="${d.presion_sis || ''}" min="0" step="1" /></div>
-            <div class="form-group"><label>Presión diastólica (mmHg)</label><input type="number" class="form-control" id="editDialisisPresionDia" value="${d.presion_dia || ''}" min="0" step="1" /></div>
-          </div>
-          <div class="form-group"><label>Glucosa (mg/dL)</label><input type="number" class="form-control" id="editDialisisGlucosa" value="${d.glucosa || ''}" min="0" step="1" /></div>
-          <div class="form-group"><label>Notas</label><input type="text" class="form-control" id="editDialisisNotas" value="${d.notas || ''}" /></div>
-          <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Actualizar diálisis</button>
+          <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Actualizar</button>
         </form>
       `;
-      openModal('Editar diálisis', html);
+      openModal('Editar recordatorio', html);
 
-      document.getElementById('formEditDialisis').addEventListener('submit', function(e) {
+      document.getElementById('formEditRecordatorio').addEventListener('submit', function(e) {
         e.preventDefault();
-        const fecha = document.getElementById('editDialisisFecha').value;
-        const hora = document.getElementById('editDialisisHora').value;
-        const bolsa = document.getElementById('editDialisisBolsa').value;
-        const proximaHora = document.getElementById('editDialisisProximaHora').value;
-        const infusion_ml = parseFloat(document.getElementById('editDialisisInfusion').value) || 2000;
-        const ml = parseFloat(document.getElementById('editDialisisMl').value);
-        const presion_sis = parseInt(document.getElementById('editDialisisPresionSis').value) || null;
-        const presion_dia = parseInt(document.getElementById('editDialisisPresionDia').value) || null;
-        const glucosa = parseInt(document.getElementById('editDialisisGlucosa').value) || null;
-        const notas = document.getElementById('editDialisisNotas').value.trim();
-
-        if (!fecha || !hora || !bolsa || !proximaHora || isNaN(ml) || ml < 0 || isNaN(infusion_ml) || infusion_ml < 0) {
-          showToast('Completa todos los campos obligatorios', 'error');
+        const fecha = document.getElementById('editRecordatorioFecha').value;
+        const mensaje = document.getElementById('editRecordatorioMensaje').value.trim();
+        if (!fecha) {
+          showToast('Selecciona una fecha y hora', 'error');
           return;
         }
-        const ultrafiltracion = ml - infusion_ml;
-        updateDialisis(editingDialisisId, {
-          fecha,
-          hora,
-          bolsa,
-          proximaHora,
-          infusion_ml,
-          ml,
-          ultrafiltracion,
-          presion_sis,
-          presion_dia,
-          glucosa,
-          notas
-        });
-        closeModal();
-        editingDialisisId = null;
+        const index = recordatoriosPrueba.findIndex(item => item.id === id);
+        if (index !== -1) {
+          recordatoriosPrueba[index].timestamp = new Date(fecha).getTime();
+          recordatoriosPrueba[index].mensaje = mensaje || '⏰ ¡Recordatorio de diálisis!';
+          recordatoriosPrueba[index].enviado = false;
+          guardarRecordatoriosPrueba();
+          closeModal();
+          showToast('✅ Recordatorio actualizado', 'success');
+        }
       });
-    };
+    }
 
-    let editingDialisisId = null;
+    function eliminarRecordatorioPrueba(id) {
+      if (!confirm('¿Eliminar este recordatorio de prueba?')) return;
+      recordatoriosPrueba = recordatoriosPrueba.filter(r => r.id !== id);
+      guardarRecordatoriosPrueba();
+      showToast('Recordatorio eliminado', 'info');
+    }
+
+    document.getElementById('btnEliminarTodosRecordatorios').addEventListener('click', function() {
+      if (!confirm('¿Eliminar TODOS los recordatorios de prueba?')) return;
+      recordatoriosPrueba = [];
+      guardarRecordatoriosPrueba();
+      showToast('Todos los recordatorios eliminados', 'info');
+    });
 
     // ============================================================
-    //  RECORDATORIO AUTOMÁTICO (cada 30 segundos)
+    //  FORM: RECORDATORIO DE PRUEBA
+    // ============================================================
+    document.getElementById('formRecordatorioPrueba').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const fechaHora = document.getElementById('recordatorioFechaHora').value;
+      const mensaje = document.getElementById('recordatorioMensaje').value.trim();
+      
+      if (!fechaHora) {
+        showToast('Selecciona una fecha y hora', 'error');
+        return;
+      }
+
+      // Verificar que sea una fecha futura
+      const timestamp = new Date(fechaHora).getTime();
+      if (timestamp < Date.now()) {
+        showToast('La fecha debe ser futura', 'error');
+        return;
+      }
+
+      agregarRecordatorioPrueba(fechaHora, mensaje || '⏰ ¡Recordatorio de diálisis! Prepárate para tu sesión. 🩺');
+      this.reset();
+      document.getElementById('recordatorioMensaje').value = '⏰ ¡Recordatorio de diálisis! Prepárate para tu sesión. 🩺';
+    });
+
+    // ============================================================
+    //  VERIFICAR RECORDATORIOS DE PRUEBA (cada 30 segundos)
+    // ============================================================
+    function verificarRecordatoriosPrueba() {
+      const ahora = Date.now();
+      const cincoMinutos = 5 * 60 * 1000;
+      let enviados = 0;
+
+      for (const r of recordatoriosPrueba) {
+        if (r.enviado) continue;
+        const diff = r.timestamp - ahora;
+        
+        // Enviar si falta menos de 15 minutos y más de 0
+        if (diff <= 15 * 60 * 1000 && diff > 0) {
+          const msg = `📢 <b>Recordatorio programado</b>\n\n${r.mensaje || '⏰ ¡Recordatorio de diálisis!'}`;
+          sendTelegramMessage(msg).then(enviado => {
+            if (enviado) {
+              r.enviado = true;
+              r.enviadoEn = new Date().toISOString();
+              guardarRecordatoriosPrueba();
+              renderRecordatoriosPrueba();
+              console.log(`✅ Recordatorio de prueba enviado: ${r.mensaje}`);
+            }
+          });
+          enviados++;
+        }
+      }
+
+      if (enviados > 0) {
+        showToast(`📨 ${enviados} recordatorio(s) de prueba enviado(s)`, 'success');
+      }
+    }
+
+    // ============================================================
+    //  RECORDATORIO AUTOMÁTICO (Diálisis)
     // ============================================================
     function iniciarVerificadorRecordatorio() {
       if (recordatorioIntervalId) {
         clearInterval(recordatorioIntervalId);
       }
-      recordatorioIntervalId = setInterval(verificarYEnviarRecordatorios, 30000);
+      recordatorioIntervalId = setInterval(() => {
+        verificarRecordatoriosDialisis();
+        verificarRecordatoriosPrueba();
+      }, 30000);
       console.log('🔄 Verificador de recordatorios iniciado (cada 30s)');
     }
 
-    async function verificarYEnviarRecordatorios() {
-      console.log('🔍 Verificando recordatorios pendientes...');
-      
-      // Recargar datos desde Firebase para tener la información más reciente
+    async function verificarRecordatoriosDialisis() {
       await cargarDesdeFirebase();
       
       const ahora = Date.now();
       const quinceMinutos = 15 * 60 * 1000;
-      const cincoMinutos = 5 * 60 * 1000;
       let enviados = 0;
 
       for (const d of state.dialisis) {
-        // Verificar si tiene campo proximaHora
         if (!d.proximaHora) continue;
-
-        // Verificar si ya fue enviado
         if (d.recordatorioEnviado) continue;
 
-        // Construir fecha y hora de la próxima diálisis
         const fechaHora = new Date(`${d.fecha}T${d.proximaHora}`);
         const timestamp = fechaHora.getTime();
-
-        // Si la fecha ya pasó, saltar
         if (timestamp < ahora) continue;
 
-        // Calcular diferencia
         const diff = timestamp - ahora;
-
-        // Si falta menos de 15 minutos y más de 0
         if (diff <= quinceMinutos && diff > 0) {
-          console.log(`⏰ Enviando recordatorio para ${d.fecha} ${d.proximaHora} (falta ${Math.round(diff/60000)} min)`);
-          
           const msg = 
             `⏰ <b>¡Recordatorio de diálisis!</b>\n\n` +
             `La próxima diálisis está programada para el <b>${new Date(timestamp).toLocaleDateString('es-ES')}</b> a las <b>${new Date(timestamp).toLocaleTimeString('es-ES')}</b>.\n` +
@@ -919,24 +1068,19 @@
             `¡Prepárate para tu diálisis! 🩺`;
 
           const enviado = await sendTelegramMessage(msg);
-          
           if (enviado) {
-            // Marcar como enviado en el estado
             d.recordatorioEnviado = true;
             d.recordatorioEnviadoEn = new Date().toISOString();
-            enviados++;
-            
-            // Guardar en Firebase
             await guardarDatos();
             renderDialisisHistorial();
             actualizarEstadoRecordatorio();
-            showToast('✅ Recordatorio enviado a Telegram', 'success');
+            enviados++;
           }
         }
       }
 
       if (enviados > 0) {
-        console.log(`✅ ${enviados} recordatorios enviados`);
+        showToast(`📨 ${enviados} recordatorio(s) de diálisis enviado(s)`, 'success');
       }
     }
 
@@ -948,7 +1092,6 @@
       const ahora = Date.now();
       const quinceMinutos = 15 * 60 * 1000;
       
-      // Buscar la próxima diálisis pendiente
       let proxima = null;
       let diffMin = Infinity;
 
@@ -995,17 +1138,29 @@
           </div>
         `;
       } else {
-        // Verificar si hay alguna diálisis programada que ya pasó
-        const pendientes = state.dialisis.filter(d => d.proximaHora && !d.recordatorioEnviado);
-        if (pendientes.length > 0) {
+        // Verificar recordatorios de prueba pendientes
+        const pendientesPrueba = recordatoriosPrueba.filter(r => !r.enviado && r.timestamp > ahora);
+        if (pendientesPrueba.length > 0) {
+          const primero = pendientesPrueba[0];
+          const diff = Math.round((primero.timestamp - ahora) / 60000);
           estadoEl.innerHTML = `
-            <div style="color:var(--warning);">
-              ⚠️ Hay ${pendientes.length} diálisis pendientes que ya pasaron su hora programada. 
-              Verifica el historial.
+            <div style="color:var(--secondary);">
+              ⏰ ${pendientesPrueba.length} recordatorio(s) de prueba pendiente(s). 
+              Próximo en ${diff} minutos.
             </div>
           `;
         } else {
-          estadoEl.innerHTML = '✅ No hay recordatorios pendientes. ¡Todo en orden!';
+          const pendientes = state.dialisis.filter(d => d.proximaHora && !d.recordatorioEnviado);
+          if (pendientes.length > 0) {
+            estadoEl.innerHTML = `
+              <div style="color:var(--warning);">
+                ⚠️ Hay ${pendientes.length} diálisis pendientes que ya pasaron su hora programada. 
+                Verifica el historial.
+              </div>
+            `;
+          } else {
+            estadoEl.innerHTML = '✅ No hay recordatorios pendientes. ¡Todo en orden!';
+          }
         }
       }
     }
@@ -1020,36 +1175,58 @@
         return;
       }
 
+      // Primero verificar recordatorios de prueba
+      let enviado = false;
       const ahora = Date.now();
       const quinceMinutos = 15 * 60 * 1000;
-      let enviado = false;
 
-      for (const d of state.dialisis) {
-        if (!d.proximaHora) continue;
-        if (d.recordatorioEnviado) continue;
-        
-        const fechaHora = new Date(`${d.fecha}T${d.proximaHora}`);
-        const timestamp = fechaHora.getTime();
-        const diff = timestamp - ahora;
-        
+      for (const r of recordatoriosPrueba) {
+        if (r.enviado) continue;
+        const diff = r.timestamp - ahora;
         if (diff <= quinceMinutos && diff > 0) {
-          const msg = 
-            `⏰ <b>¡Recordatorio de diálisis! (ENVÍO MANUAL)</b>\n\n` +
-            `La próxima diálisis está programada para el <b>${new Date(timestamp).toLocaleDateString('es-ES')}</b> a las <b>${new Date(timestamp).toLocaleTimeString('es-ES')}</b>.\n` +
-            `Bolsa: ${d.bolsa || 'No especificada'}\n` +
-            `Volumen drenado: ${d.ml || '?'} ml\n` +
-            `¡Prepárate para tu diálisis! 🩺`;
-
+          const msg = `📢 <b>Recordatorio de prueba</b>\n\n${r.mensaje || '⏰ ¡Recordatorio de diálisis!'}`;
           const ok = await sendTelegramMessage(msg);
           if (ok) {
-            d.recordatorioEnviado = true;
-            d.recordatorioEnviadoEn = new Date().toISOString();
-            await guardarDatos();
-            renderDialisisHistorial();
-            actualizarEstadoRecordatorio();
+            r.enviado = true;
+            r.enviadoEn = new Date().toISOString();
+            guardarRecordatoriosPrueba();
+            renderRecordatoriosPrueba();
             enviado = true;
-            showToast('✅ Recordatorio enviado manualmente', 'success');
+            showToast('✅ Recordatorio de prueba enviado', 'success');
             break;
+          }
+        }
+      }
+
+      // Si no hay recordatorios de prueba, buscar diálisis
+      if (!enviado) {
+        for (const d of state.dialisis) {
+          if (!d.proximaHora) continue;
+          if (d.recordatorioEnviado) continue;
+          
+          const fechaHora = new Date(`${d.fecha}T${d.proximaHora}`);
+          const timestamp = fechaHora.getTime();
+          const diff = timestamp - ahora;
+          
+          if (diff <= quinceMinutos && diff > 0) {
+            const msg = 
+              `⏰ <b>¡Recordatorio de diálisis! (ENVÍO MANUAL)</b>\n\n` +
+              `La próxima diálisis está programada para el <b>${new Date(timestamp).toLocaleDateString('es-ES')}</b> a las <b>${new Date(timestamp).toLocaleTimeString('es-ES')}</b>.\n` +
+              `Bolsa: ${d.bolsa || 'No especificada'}\n` +
+              `Volumen drenado: ${d.ml || '?'} ml\n` +
+              `¡Prepárate para tu diálisis! 🩺`;
+
+            const ok = await sendTelegramMessage(msg);
+            if (ok) {
+              d.recordatorioEnviado = true;
+              d.recordatorioEnviadoEn = new Date().toISOString();
+              await guardarDatos();
+              renderDialisisHistorial();
+              actualizarEstadoRecordatorio();
+              enviado = true;
+              showToast('✅ Recordatorio enviado manualmente', 'success');
+              break;
+            }
           }
         }
       }
@@ -1345,6 +1522,137 @@
     });
 
     // ============================================================
+    //  CRUD: DIÁLISIS
+    // ============================================================
+    async function addDialisis(data) {
+      const entry = { id: generateId(), ...data, timestamp: Date.now(), recordatorioEnviado: false };
+      state.dialisis.push(entry);
+      await guardarDatos();
+      renderDashboard();
+      renderDialisisHistorial();
+      checkAndSendTelegramAlert('dialisis', entry);
+      showToast('✅ Diálisis registrada correctamente', 'success');
+    }
+
+    async function updateDialisis(id, data) {
+      const index = state.dialisis.findIndex(d => d.id === id);
+      if (index === -1) {
+        showToast('Error: No se encontró el registro', 'error');
+        return;
+      }
+
+      const nuevaFechaHora = new Date(`${data.fecha}T${data.hora}`).getTime();
+      
+      state.dialisis[index] = {
+        ...state.dialisis[index],
+        ...data,
+        timestamp: nuevaFechaHora
+      };
+
+      await guardarDatos();
+      await cargarDesdeFirebase();
+      renderDashboard();
+      renderDialisisHistorial();
+      
+      showToast('✅ Diálisis actualizada correctamente', 'success');
+    }
+
+    window.deleteDialisis = async function(id) {
+      if (!confirm('¿Eliminar este registro de diálisis?')) return;
+      state.dialisis = state.dialisis.filter(d => d.id !== id);
+      await guardarDatos();
+      renderDashboard();
+      renderDialisisHistorial();
+      showToast('Registro eliminado', 'info');
+    };
+
+    async function guardarDatos() {
+      const ok = await guardarEnFirebase();
+      if (!ok) guardarEnLocalStorage();
+    }
+
+    // ============================================================
+    //  EDITAR DIÁLISIS (Modal)
+    // ============================================================
+    window.abrirEditarDialisis = function(id) {
+      const d = state.dialisis.find(item => item.id === id);
+      if (!d) return;
+      editingDialisisId = id;
+      const html = `
+        <form id="formEditDialisis" autocomplete="off">
+          <div class="form-row">
+            <div class="form-group"><label>Fecha</label><input type="date" class="form-control" id="editDialisisFecha" value="${d.fecha}" required /></div>
+            <div class="form-group"><label>Hora</label><input type="time" class="form-control" id="editDialisisHora" value="${d.hora}" required /></div>
+          </div>
+          <div class="form-group">
+            <label>Tipo de bolsa</label>
+            <select class="form-control" id="editDialisisBolsa" required>
+              <option value="1.5%" ${d.bolsa==='1.5%'?'selected':''}>1.5% (Amarilla) - 4-6h</option>
+              <option value="2.5%" ${d.bolsa==='2.5%'?'selected':''}>2.5% (Verde) - 6-8h</option>
+              <option value="4.25%" ${d.bolsa==='4.25%'?'selected':''}>4.25% (Roja) - 8-12h</option>
+              <option value="Extraneal" ${d.bolsa==='Extraneal'?'selected':''}>Extraneal (Icodextrina)</option>
+              <option value="Nutrineal" ${d.bolsa==='Nutrineal'?'selected':''}>Nutrineal (Aminoácidos)</option>
+              <option value="Otra" ${d.bolsa==='Otra'?'selected':''}>Otra</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Hora de la próxima diálisis <span class="label-hint">(se enviará recordatorio 15 min antes)</span></label>
+            <input type="time" class="form-control" id="editDialisisProximaHora" value="${d.proximaHora || ''}" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Volumen de infusión (ml)</label><input type="number" class="form-control" id="editDialisisInfusion" value="${d.infusion_ml || 2000}" min="0" step="50" required /></div>
+            <div class="form-group"><label>Volumen drenado (ml)</label><input type="number" class="form-control" id="editDialisisMl" value="${d.ml || ''}" min="0" step="50" required /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Presión sistólica (mmHg)</label><input type="number" class="form-control" id="editDialisisPresionSis" value="${d.presion_sis || ''}" min="0" step="1" /></div>
+            <div class="form-group"><label>Presión diastólica (mmHg)</label><input type="number" class="form-control" id="editDialisisPresionDia" value="${d.presion_dia || ''}" min="0" step="1" /></div>
+          </div>
+          <div class="form-group"><label>Glucosa (mg/dL)</label><input type="number" class="form-control" id="editDialisisGlucosa" value="${d.glucosa || ''}" min="0" step="1" /></div>
+          <div class="form-group"><label>Notas</label><input type="text" class="form-control" id="editDialisisNotas" value="${d.notas || ''}" /></div>
+          <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Actualizar diálisis</button>
+        </form>
+      `;
+      openModal('Editar diálisis', html);
+
+      document.getElementById('formEditDialisis').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fecha = document.getElementById('editDialisisFecha').value;
+        const hora = document.getElementById('editDialisisHora').value;
+        const bolsa = document.getElementById('editDialisisBolsa').value;
+        const proximaHora = document.getElementById('editDialisisProximaHora').value;
+        const infusion_ml = parseFloat(document.getElementById('editDialisisInfusion').value) || 2000;
+        const ml = parseFloat(document.getElementById('editDialisisMl').value);
+        const presion_sis = parseInt(document.getElementById('editDialisisPresionSis').value) || null;
+        const presion_dia = parseInt(document.getElementById('editDialisisPresionDia').value) || null;
+        const glucosa = parseInt(document.getElementById('editDialisisGlucosa').value) || null;
+        const notas = document.getElementById('editDialisisNotas').value.trim();
+
+        if (!fecha || !hora || !bolsa || !proximaHora || isNaN(ml) || ml < 0 || isNaN(infusion_ml) || infusion_ml < 0) {
+          showToast('Completa todos los campos obligatorios', 'error');
+          return;
+        }
+        const ultrafiltracion = ml - infusion_ml;
+        updateDialisis(editingDialisisId, {
+          fecha,
+          hora,
+          bolsa,
+          proximaHora,
+          infusion_ml,
+          ml,
+          ultrafiltracion,
+          presion_sis,
+          presion_dia,
+          glucosa,
+          notas
+        });
+        closeModal();
+        editingDialisisId = null;
+      });
+    };
+
+    let editingDialisisId = null;
+
+    // ============================================================
     //  EVENTOS: SUB-TABS, MEDICAMENTOS, DOCTORES
     // ============================================================
     document.querySelectorAll('.sub-tab-item').forEach(btn => {
@@ -1359,6 +1667,26 @@
       });
     });
 
+    // ============================================================
+    //  CONFIG SUB-TABS
+    // ============================================================
+    document.querySelectorAll('.config-sub-tab-item').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.config-sub-tab-item').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const tab = this.dataset.configtab;
+        document.querySelectorAll('.config-sub-page').forEach(p => p.classList.remove('active'));
+        const target = document.querySelector(`.config-sub-page[data-configtab="${tab}"]`);
+        if (target) target.classList.add('active');
+        if (tab === 'recordatorios') {
+          renderRecordatoriosPrueba();
+        }
+      });
+    });
+
+    // ============================================================
+    //  FORM: MEDICAMENTOS
+    // ============================================================
     document.querySelectorAll('.formMedicamentoEspecialidad').forEach(form => {
       form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -1509,6 +1837,7 @@
 
     document.getElementById('btnRefresh').addEventListener('click', async function() {
       await cargarDesdeFirebase();
+      cargarRecordatoriosPrueba();
       renderAll();
       showToast('🔄 Actualizado desde Firebase', 'info');
     });
@@ -1517,7 +1846,7 @@
     //  EXPORT / IMPORT / BORRAR
     // ============================================================
     document.getElementById('btnExportarDatos').addEventListener('click', function() {
-      const data = { version: '2.4', exportado: new Date().toISOString(), ...state };
+      const data = { version: '2.5', exportado: new Date().toISOString(), ...state, recordatoriosPrueba };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1540,7 +1869,9 @@
           if (data.dialisis) state.dialisis = data.dialisis;
           if (data.medicamentos) state.medicamentos = data.medicamentos;
           if (data.doctores) state.doctores = data.doctores;
+          if (data.recordatoriosPrueba) recordatoriosPrueba = data.recordatoriosPrueba;
           await guardarEnFirebase();
+          guardarRecordatoriosPrueba();
           renderAll();
           showToast('✅ Datos importados', 'success');
         } catch (err) {
@@ -1561,7 +1892,9 @@
         nefrologia: { nombre: 'Nefrólogo', especialidad: 'Nefrología', receta: '' },
         medicina_interna: { nombre: 'Medicina Interna', especialidad: 'Medicina Interna', receta: '' }
       };
+      recordatoriosPrueba = [];
       await guardarEnFirebase();
+      guardarRecordatoriosPrueba();
       renderAll();
       showToast('🗑️ Todos los datos eliminados', 'info');
     });
@@ -1585,6 +1918,7 @@
       if (activeSub) renderSubPage(activeSub.dataset.specialty);
       updateMedBadge();
       actualizarEstadoRecordatorio();
+      renderRecordatoriosPrueba();
       const key = localStorage.getItem('groqApiKey');
       if (key) actualizarEstadoIA(true);
       else actualizarEstadoIA(false);
@@ -1603,10 +1937,16 @@
         showToast('⚠️ Trabajando en modo offline. Los datos se guardarán localmente.', 'warning');
       }
 
+      cargarRecordatoriosPrueba();
+
       document.getElementById('dialisisFecha').value = todayStr();
       const now = new Date();
       document.getElementById('dialisisHora').value = now.toTimeString().slice(0, 5);
       document.getElementById('dialisisInfusion').value = 2000;
+
+      // Configurar fecha por defecto en el formulario de recordatorios (1 hora después)
+      const fechaDefecto = new Date(Date.now() + 60 * 60 * 1000);
+      document.getElementById('recordatorioFechaHora').value = fechaDefecto.toISOString().slice(0, 16);
 
       const firstSub = document.querySelector('.sub-tab-item');
       if (firstSub) {
@@ -1642,7 +1982,7 @@
           .then(() => console.log('✅ SW registrado'))
           .catch(err => console.warn('⚠️ SW no registrado:', err));
       }
-      console.log('🚀 App de Diálisis Peritoneal v2.4 - Recordatorios automáticos mejorados');
+      console.log('🚀 App de Diálisis Peritoneal v2.5 - Recordatorios de prueba en Configuración');
     }
 
     window.navigateTo = navigateTo;
@@ -1650,6 +1990,8 @@
     window.deleteDialisis = deleteDialisis;
     window.deleteMedicamento = deleteMedicamento;
     window.abrirEditarDialisis = abrirEditarDialisis;
+    window.editarRecordatorioPrueba = editarRecordatorioPrueba;
+    window.eliminarRecordatorioPrueba = eliminarRecordatorioPrueba;
 
     init();
   </script>
