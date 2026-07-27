@@ -360,7 +360,6 @@
       </div>
       <!-- CONFIG -->
       <div class="page" id="pageConfig">
-        <!-- Sub-tabs de Configuración -->
         <div class="config-sub-tab-bar" id="configSubTabBar">
           <button class="config-sub-tab-item active" data-configtab="telegram"><i class="fab fa-telegram"></i> Telegram</button>
           <button class="config-sub-tab-item" data-configtab="recordatorios"><i class="fas fa-bell"></i> Recordatorios</button>
@@ -380,7 +379,7 @@
           </div>
         </div>
 
-        <!-- Sub-página: Recordatorios (NUEVA) -->
+        <!-- Sub-página: Recordatorios -->
         <div class="config-sub-page" data-configtab="recordatorios">
           <div class="card">
             <div class="card-header">
@@ -496,7 +495,7 @@
             if (d.ultrafiltracion === undefined) d.ultrafiltracion = (d.ml || 0) - (d.infusion_ml || 2000);
           });
           cargarSettingsLocales();
-          cargarRecordatoriosPrueba();
+          await cargarRecordatoriosDesdeFirebase();
           return true;
         } else {
           await db.collection('pacientes').doc(USUARIO_ID).set({
@@ -565,23 +564,62 @@
       localStorage.setItem(TG_SETTINGS_KEY, JSON.stringify(tgSettings));
     }
 
-    function cargarRecordatoriosPrueba() {
+    function cargarRecordatoriosDesdeFirebase() {
+      // Ya se implementa en la función cargarDesdeFirebase
+      // Este es un placeholder para compatibilidad
+    }
+
+    async function cargarRecordatoriosLocales() {
       try {
+        const snapshot = await db.collection('pacientes').doc(USUARIO_ID).collection('recordatoriosPrueba').get();
+        if (!snapshot.empty) {
+          const recordatoriosFirebase = [];
+          snapshot.forEach(doc => {
+            recordatoriosFirebase.push({ id: doc.id, ...doc.data() });
+          });
+          recordatoriosPrueba = recordatoriosFirebase;
+          guardarRecordatoriosPruebaLocal();
+          renderRecordatoriosPrueba();
+          console.log(`📋 ${recordatoriosFirebase.length} recordatorios cargados desde Firebase`);
+        } else {
+          // Si no hay en Firebase, cargar desde localStorage
+          const raw = localStorage.getItem(RECORDATORIOS_KEY);
+          if (raw) {
+            recordatoriosPrueba = JSON.parse(raw);
+            // Sincronizar con Firebase
+            for (const r of recordatoriosPrueba) {
+              try {
+                await db.collection('pacientes').doc(USUARIO_ID).collection('recordatoriosPrueba').doc(r.id).set(r);
+              } catch (e) {
+                console.warn('Error sincronizando recordatorio:', e);
+              }
+            }
+            renderRecordatoriosPrueba();
+          }
+        }
+      } catch (e) {
+        console.warn('Error cargando recordatorios:', e);
         const raw = localStorage.getItem(RECORDATORIOS_KEY);
         if (raw) {
           recordatoriosPrueba = JSON.parse(raw);
-        } else {
-          recordatoriosPrueba = [];
+          renderRecordatoriosPrueba();
         }
-      } catch (e) { recordatoriosPrueba = []; }
-      renderRecordatoriosPrueba();
+      }
     }
 
-    function guardarRecordatoriosPrueba() {
+    function guardarRecordatoriosPruebaLocal() {
       try {
         localStorage.setItem(RECORDATORIOS_KEY, JSON.stringify(recordatoriosPrueba));
       } catch (e) { console.warn('Error guardando recordatorios', e); }
-      renderRecordatoriosPrueba();
+    }
+
+    async function sincronizarRecordatorioConFirebase(recordatorio) {
+      try {
+        const docRef = db.collection('pacientes').doc(USUARIO_ID).collection('recordatoriosPrueba').doc(recordatorio.id);
+        await docRef.set(recordatorio);
+      } catch (e) {
+        console.warn('Error sincronizando recordatorio con Firebase:', e);
+      }
     }
 
     function actualizarBadgeOnline(online) {
@@ -853,7 +891,6 @@
         return;
       }
 
-      // Ordenar por fecha (más cercano primero)
       const sorted = recordatoriosPrueba.slice().sort((a, b) => a.timestamp - b.timestamp);
 
       el.innerHTML = sorted.map(r => {
@@ -899,7 +936,7 @@
     // ============================================================
     //  CRUD: RECORDATORIOS DE PRUEBA
     // ============================================================
-    function agregarRecordatorioPrueba(fechaHora, mensaje) {
+    async function agregarRecordatorioPrueba(fechaHora, mensaje) {
       const timestamp = new Date(fechaHora).getTime();
       const recordatorio = {
         id: generateId(),
@@ -908,12 +945,24 @@
         enviado: false,
         creadoEn: new Date().toISOString()
       };
+      
+      // Guardar en localStorage
       recordatoriosPrueba.push(recordatorio);
-      guardarRecordatoriosPrueba();
-      showToast('✅ Recordatorio de prueba creado', 'success');
+      guardarRecordatoriosPruebaLocal();
+      
+      // Guardar en Firebase (para Val Town)
+      try {
+        await db.collection('pacientes').doc(USUARIO_ID).collection('recordatoriosPrueba').doc(recordatorio.id).set(recordatorio);
+        console.log('💾 Recordatorio guardado en Firebase para Val Town');
+      } catch (e) {
+        console.warn('Error guardando recordatorio en Firebase:', e);
+      }
+      
+      renderRecordatoriosPrueba();
+      showToast('✅ Recordatorio de prueba creado (sincronizado con Val Town)', 'success');
     }
 
-    function editarRecordatorioPrueba(id) {
+    async function editarRecordatorioPrueba(id) {
       const r = recordatoriosPrueba.find(item => item.id === id);
       if (!r) return;
       
@@ -936,7 +985,7 @@
       `;
       openModal('Editar recordatorio', html);
 
-      document.getElementById('formEditRecordatorio').addEventListener('submit', function(e) {
+      document.getElementById('formEditRecordatorio').addEventListener('submit', async function(e) {
         e.preventDefault();
         const fecha = document.getElementById('editRecordatorioFecha').value;
         const mensaje = document.getElementById('editRecordatorioMensaje').value.trim();
@@ -946,27 +995,67 @@
         }
         const index = recordatoriosPrueba.findIndex(item => item.id === id);
         if (index !== -1) {
-          recordatoriosPrueba[index].timestamp = new Date(fecha).getTime();
+          const nuevoTimestamp = new Date(fecha).getTime();
+          recordatoriosPrueba[index].timestamp = nuevoTimestamp;
           recordatoriosPrueba[index].mensaje = mensaje || '⏰ ¡Recordatorio de diálisis!';
           recordatoriosPrueba[index].enviado = false;
-          guardarRecordatoriosPrueba();
+          guardarRecordatoriosPruebaLocal();
+          
+          // Actualizar en Firebase
+          try {
+            await db.collection('pacientes').doc(USUARIO_ID).collection('recordatoriosPrueba').doc(id).update({
+              timestamp: nuevoTimestamp,
+              mensaje: mensaje || '⏰ ¡Recordatorio de diálisis!',
+              enviado: false
+            });
+            console.log('💾 Recordatorio actualizado en Firebase');
+          } catch (e) {
+            console.warn('Error actualizando recordatorio en Firebase:', e);
+          }
+          
           closeModal();
           showToast('✅ Recordatorio actualizado', 'success');
         }
       });
     }
 
-    function eliminarRecordatorioPrueba(id) {
+    async function eliminarRecordatorioPrueba(id) {
       if (!confirm('¿Eliminar este recordatorio de prueba?')) return;
       recordatoriosPrueba = recordatoriosPrueba.filter(r => r.id !== id);
-      guardarRecordatoriosPrueba();
+      guardarRecordatoriosPruebaLocal();
+      
+      // Eliminar de Firebase
+      try {
+        await db.collection('pacientes').doc(USUARIO_ID).collection('recordatoriosPrueba').doc(id).delete();
+        console.log('🗑️ Recordatorio eliminado de Firebase');
+      } catch (e) {
+        console.warn('Error eliminando recordatorio de Firebase:', e);
+      }
+      
+      renderRecordatoriosPrueba();
       showToast('Recordatorio eliminado', 'info');
     }
 
-    document.getElementById('btnEliminarTodosRecordatorios').addEventListener('click', function() {
+    document.getElementById('btnEliminarTodosRecordatorios').addEventListener('click', async function() {
       if (!confirm('¿Eliminar TODOS los recordatorios de prueba?')) return;
+      
       recordatoriosPrueba = [];
-      guardarRecordatoriosPrueba();
+      guardarRecordatoriosPruebaLocal();
+      
+      // Eliminar de Firebase (todos)
+      try {
+        const snapshot = await db.collection('pacientes').doc(USUARIO_ID).collection('recordatoriosPrueba').get();
+        const batch = db.batch();
+        snapshot.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+        console.log('🗑️ Todos los recordatorios eliminados de Firebase');
+      } catch (e) {
+        console.warn('Error eliminando recordatorios de Firebase:', e);
+      }
+      
+      renderRecordatoriosPrueba();
       showToast('Todos los recordatorios eliminados', 'info');
     });
 
@@ -983,7 +1072,6 @@
         return;
       }
 
-      // Verificar que sea una fecha futura
       const timestamp = new Date(fechaHora).getTime();
       if (timestamp < Date.now()) {
         showToast('La fecha debe ser futura', 'error');
@@ -1000,31 +1088,29 @@
     // ============================================================
     function verificarRecordatoriosPrueba() {
       const ahora = Date.now();
-      const cincoMinutos = 5 * 60 * 1000;
-      let enviados = 0;
+      const quinceMinutos = 15 * 60 * 1000;
 
       for (const r of recordatoriosPrueba) {
         if (r.enviado) continue;
         const diff = r.timestamp - ahora;
         
-        // Enviar si falta menos de 15 minutos y más de 0
-        if (diff <= 15 * 60 * 1000 && diff > 0) {
+        if (diff <= quinceMinutos && diff > 0) {
           const msg = `📢 <b>Recordatorio programado</b>\n\n${r.mensaje || '⏰ ¡Recordatorio de diálisis!'}`;
           sendTelegramMessage(msg).then(enviado => {
             if (enviado) {
               r.enviado = true;
               r.enviadoEn = new Date().toISOString();
-              guardarRecordatoriosPrueba();
+              guardarRecordatoriosPruebaLocal();
+              // Actualizar en Firebase
+              db.collection('pacientes').doc(USUARIO_ID).collection('recordatoriosPrueba').doc(r.id).update({
+                enviado: true,
+                enviadoEn: r.enviadoEn
+              }).catch(e => console.warn('Error actualizando en Firebase:', e));
               renderRecordatoriosPrueba();
               console.log(`✅ Recordatorio de prueba enviado: ${r.mensaje}`);
             }
           });
-          enviados++;
         }
-      }
-
-      if (enviados > 0) {
-        showToast(`📨 ${enviados} recordatorio(s) de prueba enviado(s)`, 'success');
       }
     }
 
@@ -1138,7 +1224,6 @@
           </div>
         `;
       } else {
-        // Verificar recordatorios de prueba pendientes
         const pendientesPrueba = recordatoriosPrueba.filter(r => !r.enviado && r.timestamp > ahora);
         if (pendientesPrueba.length > 0) {
           const primero = pendientesPrueba[0];
@@ -1175,7 +1260,6 @@
         return;
       }
 
-      // Primero verificar recordatorios de prueba
       let enviado = false;
       const ahora = Date.now();
       const quinceMinutos = 15 * 60 * 1000;
@@ -1189,7 +1273,11 @@
           if (ok) {
             r.enviado = true;
             r.enviadoEn = new Date().toISOString();
-            guardarRecordatoriosPrueba();
+            guardarRecordatoriosPruebaLocal();
+            await db.collection('pacientes').doc(USUARIO_ID).collection('recordatoriosPrueba').doc(r.id).update({
+              enviado: true,
+              enviadoEn: r.enviadoEn
+            }).catch(e => console.warn(e));
             renderRecordatoriosPrueba();
             enviado = true;
             showToast('✅ Recordatorio de prueba enviado', 'success');
@@ -1198,7 +1286,6 @@
         }
       }
 
-      // Si no hay recordatorios de prueba, buscar diálisis
       if (!enviado) {
         for (const d of state.dialisis) {
           if (!d.proximaHora) continue;
@@ -1819,7 +1906,6 @@
         navigateTo('config');
         return;
       }
-      // Enviar reporte diario
       const hoy = getTodayDialisis().length;
       const lowMeds = getLowStockMeds();
       let msg = `📋 <b>Reporte diario</b>\n🩺 Diálisis hoy: ${hoy}\n💊 Medicamentos: ${state.medicamentos.length}\n⚠️ Stock bajo: ${lowMeds.length}`;
@@ -1837,7 +1923,7 @@
 
     document.getElementById('btnRefresh').addEventListener('click', async function() {
       await cargarDesdeFirebase();
-      cargarRecordatoriosPrueba();
+      await cargarRecordatoriosLocales();
       renderAll();
       showToast('🔄 Actualizado desde Firebase', 'info');
     });
@@ -1871,7 +1957,7 @@
           if (data.doctores) state.doctores = data.doctores;
           if (data.recordatoriosPrueba) recordatoriosPrueba = data.recordatoriosPrueba;
           await guardarEnFirebase();
-          guardarRecordatoriosPrueba();
+          guardarRecordatoriosPruebaLocal();
           renderAll();
           showToast('✅ Datos importados', 'success');
         } catch (err) {
@@ -1894,7 +1980,7 @@
       };
       recordatoriosPrueba = [];
       await guardarEnFirebase();
-      guardarRecordatoriosPrueba();
+      guardarRecordatoriosPruebaLocal();
       renderAll();
       showToast('🗑️ Todos los datos eliminados', 'info');
     });
@@ -1937,14 +2023,13 @@
         showToast('⚠️ Trabajando en modo offline. Los datos se guardarán localmente.', 'warning');
       }
 
-      cargarRecordatoriosPrueba();
+      await cargarRecordatoriosLocales();
 
       document.getElementById('dialisisFecha').value = todayStr();
       const now = new Date();
       document.getElementById('dialisisHora').value = now.toTimeString().slice(0, 5);
       document.getElementById('dialisisInfusion').value = 2000;
 
-      // Configurar fecha por defecto en el formulario de recordatorios (1 hora después)
       const fechaDefecto = new Date(Date.now() + 60 * 60 * 1000);
       document.getElementById('recordatorioFechaHora').value = fechaDefecto.toISOString().slice(0, 16);
 
@@ -1961,7 +2046,6 @@
       renderAll();
       navigateTo('dashboard');
 
-      // INICIAR EL VERIFICADOR DE RECORDATORIOS
       iniciarVerificadorRecordatorio();
 
       setTimeout(() => {
@@ -1982,7 +2066,7 @@
           .then(() => console.log('✅ SW registrado'))
           .catch(err => console.warn('⚠️ SW no registrado:', err));
       }
-      console.log('🚀 App de Diálisis Peritoneal v2.5 - Recordatorios de prueba en Configuración');
+      console.log('🚀 App de Diálisis Peritoneal v2.5 - Recordatorios sincronizados con Val Town');
     }
 
     window.navigateTo = navigateTo;
