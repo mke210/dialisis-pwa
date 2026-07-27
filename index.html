@@ -33,6 +33,7 @@
     }
     .app-header h1 { font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
     .app-header h1 img { height: 32px; width: 32px; border-radius: 8px; background: rgba(255,255,255,0.15); padding: 4px; }
+    .app-header h1 .paciente-nombre { font-size: 0.7rem; font-weight: 400; opacity: 0.9; margin-left: 6px; background: rgba(255,255,255,0.15); padding: 2px 10px; border-radius: 20px; display: inline-block; }
     .header-actions { display: flex; gap: 12px; align-items: center; }
     .header-actions button { background: rgba(255,255,255,0.2); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 1rem; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; }
     .header-actions button:hover { background: rgba(255,255,255,0.35); }
@@ -107,10 +108,7 @@
     .btn-sm { padding: 6px 14px; font-size: 0.75rem; border-radius: 8px; }
     .btn-warning { background: var(--secondary); color: #fff; }
     .btn-warning:hover { background: #e67e22; }
-    /* Botones en modal más compactos */
-    .modal-actions {
-      display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap;
-    }
+    .modal-actions { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
     .modal-actions .btn { flex: 1; min-width: 60px; padding: 8px 10px; font-size: 0.8rem; }
     .list-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #f0f4f8; gap: 10px; }
     .list-item:last-child { border-bottom: none; }
@@ -197,30 +195,8 @@
     .config-sub-page.active { display: block; }
     .btn-enviar-recordatorio { background: var(--secondary); color: #fff; }
     .btn-enviar-recordatorio:hover { background: #e67e22; }
-    /* Estilo para el input type time con mejor visibilidad */
-    input[type="time"] {
-      font-size: 1.1rem;
-      padding: 12px 14px;
-      background: #fafcfd;
-    }
-    /* Nombre del paciente en el header */
-    .paciente-nombre {
-      font-size: 0.7rem;
-      font-weight: 400;
-      opacity: 0.9;
-      margin-left: 6px;
-      background: rgba(255,255,255,0.15);
-      padding: 2px 10px;
-      border-radius: 20px;
-      display: inline-block;
-    }
-    /* Campo de nombre del paciente en Configuración */
-    .paciente-config {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
+    input[type="time"] { font-size: 1.1rem; padding: 12px 14px; background: #fafcfd; }
+    .paciente-config { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .paciente-config input { flex: 1; }
     .paciente-config button { white-space: nowrap; }
   </style>
@@ -309,7 +285,7 @@
               <span id="nextDialysisTime">Selecciona una bolsa para ver el rango</span>
             </div>
             <div class="form-group">
-              <label>Hora de la próxima diálisis <span class="label-hint">(se enviará recordatorio 15 min antes)</span></label>
+              <label>Hora de la próxima diálisis <span class="label-hint">(se enviará recordatorio 5 min antes)</span></label>
               <input type="time" class="form-control" id="dialisisProximaHora" required />
             </div>
             <div class="form-row">
@@ -362,9 +338,9 @@
                 <div class="form-row"><div class="form-group"><label>Pastillas/caja</label><input type="number" class="form-control medPillsBox" placeholder="30" min="1" required /></div><div class="form-group"><label>Stock actual</label><input type="number" class="form-control medStock" placeholder="30" min="0" required /></div></div>
                 <div class="form-group"><label>Frecuencia</label><select class="form-control medFrecuencia" required><option value="8h">Cada 8h</option><option value="12h">Cada 12h</option><option value="24h">Cada 24h</option><option value="6h">Cada 6h</option><option value="4h">Cada 4h</option><option value="48h">Cada 48h</option><option value="semanal">Semanal</option><option value="otra">Otra</option></select></div>
                 <div class="form-group">
-                  <label>Hora de toma <span class="label-hint">(recordatorio diario)</span></label>
+                  <label>Hora de toma <span class="label-hint">(recordatorio diario 5 min antes)</span></label>
                   <input type="time" class="form-control medHoraToma" value="08:00" />
-                  <small style="color:var(--gray);font-size:0.6rem;">Se enviará recordatorio 15 minutos antes</small>
+                  <small style="color:var(--gray);font-size:0.6rem;">Se enviará recordatorio 5 minutos antes</small>
                 </div>
                 <div class="form-row"><div class="form-group"><label>Dosis (mg)</label><input type="text" class="form-control medDosis" placeholder="Ej: 50mg" /></div><div class="form-group"><label>Vía oral (ml)</label><input type="number" class="form-control medOralMl" placeholder="ml" min="0" step="0.5" /></div></div>
                 <div class="form-group"><label>Alerta cuando queden</label><input type="number" class="form-control medUmbral" placeholder="5" min="1" value="5" required /></div>
@@ -383,7 +359,7 @@
               <div class="form-group"><label>Nombre</label><input type="text" class="form-control medNombre" placeholder="Ej: Losartán" required /></div>
               <div class="form-row"><div class="form-group"><label>Pastillas/caja</label><input type="number" class="form-control medPillsBox" placeholder="30" min="1" required /></div><div class="form-group"><label>Stock actual</label><input type="number" class="form-control medStock" placeholder="30" min="0" required /></div></div>
               <div class="form-group"><label>Frecuencia</label><select class="form-control medFrecuencia" required><option value="8h">Cada 8h</option><option value="12h">Cada 12h</option><option value="24h">Cada 24h</option><option value="6h">Cada 6h</option><option value="4h">Cada 4h</option><option value="48h">Cada 48h</option><option value="semanal">Semanal</option><option value="otra">Otra</option></select></div>
-              <div class="form-group"><label>Hora de toma <span class="label-hint">(recordatorio diario)</span></label><input type="time" class="form-control medHoraToma" value="08:00" /><small style="color:var(--gray);font-size:0.6rem;">Se enviará recordatorio 15 minutos antes</small></div>
+              <div class="form-group"><label>Hora de toma <span class="label-hint">(recordatorio diario 5 min antes)</span></label><input type="time" class="form-control medHoraToma" value="08:00" /><small style="color:var(--gray);font-size:0.6rem;">Se enviará recordatorio 5 minutos antes</small></div>
               <div class="form-row"><div class="form-group"><label>Dosis (mg)</label><input type="text" class="form-control medDosis" placeholder="Ej: 50mg" /></div><div class="form-group"><label>Vía oral (ml)</label><input type="number" class="form-control medOralMl" placeholder="ml" min="0" step="0.5" /></div></div>
               <div class="form-group"><label>Alerta cuando queden</label><input type="number" class="form-control medUmbral" placeholder="5" min="1" value="5" required /></div>
               <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-plus"></i> Agregar</button>
@@ -400,7 +376,7 @@
               <div class="form-group"><label>Nombre</label><input type="text" class="form-control medNombre" placeholder="Ej: Losartán" required /></div>
               <div class="form-row"><div class="form-group"><label>Pastillas/caja</label><input type="number" class="form-control medPillsBox" placeholder="30" min="1" required /></div><div class="form-group"><label>Stock actual</label><input type="number" class="form-control medStock" placeholder="30" min="0" required /></div></div>
               <div class="form-group"><label>Frecuencia</label><select class="form-control medFrecuencia" required><option value="8h">Cada 8h</option><option value="12h">Cada 12h</option><option value="24h">Cada 24h</option><option value="6h">Cada 6h</option><option value="4h">Cada 4h</option><option value="48h">Cada 48h</option><option value="semanal">Semanal</option><option value="otra">Otra</option></select></div>
-              <div class="form-group"><label>Hora de toma <span class="label-hint">(recordatorio diario)</span></label><input type="time" class="form-control medHoraToma" value="08:00" /><small style="color:var(--gray);font-size:0.6rem;">Se enviará recordatorio 15 minutos antes</small></div>
+              <div class="form-group"><label>Hora de toma <span class="label-hint">(recordatorio diario 5 min antes)</span></label><input type="time" class="form-control medHoraToma" value="08:00" /><small style="color:var(--gray);font-size:0.6rem;">Se enviará recordatorio 5 minutos antes</small></div>
               <div class="form-row"><div class="form-group"><label>Dosis (mg)</label><input type="text" class="form-control medDosis" placeholder="Ej: 50mg" /></div><div class="form-group"><label>Vía oral (ml)</label><input type="number" class="form-control medOralMl" placeholder="ml" min="0" step="0.5" /></div></div>
               <div class="form-group"><label>Alerta cuando queden</label><input type="number" class="form-control medUmbral" placeholder="5" min="1" value="5" required /></div>
               <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-plus"></i> Agregar</button>
@@ -417,7 +393,7 @@
               <div class="form-group"><label>Nombre</label><input type="text" class="form-control medNombre" placeholder="Ej: Losartán" required /></div>
               <div class="form-row"><div class="form-group"><label>Pastillas/caja</label><input type="number" class="form-control medPillsBox" placeholder="30" min="1" required /></div><div class="form-group"><label>Stock actual</label><input type="number" class="form-control medStock" placeholder="30" min="0" required /></div></div>
               <div class="form-group"><label>Frecuencia</label><select class="form-control medFrecuencia" required><option value="8h">Cada 8h</option><option value="12h">Cada 12h</option><option value="24h">Cada 24h</option><option value="6h">Cada 6h</option><option value="4h">Cada 4h</option><option value="48h">Cada 48h</option><option value="semanal">Semanal</option><option value="otra">Otra</option></select></div>
-              <div class="form-group"><label>Hora de toma <span class="label-hint">(recordatorio diario)</span></label><input type="time" class="form-control medHoraToma" value="08:00" /><small style="color:var(--gray);font-size:0.6rem;">Se enviará recordatorio 15 minutos antes</small></div>
+              <div class="form-group"><label>Hora de toma <span class="label-hint">(recordatorio diario 5 min antes)</span></label><input type="time" class="form-control medHoraToma" value="08:00" /><small style="color:var(--gray);font-size:0.6rem;">Se enviará recordatorio 5 minutos antes</small></div>
               <div class="form-row"><div class="form-group"><label>Dosis (mg)</label><input type="text" class="form-control medDosis" placeholder="Ej: 50mg" /></div><div class="form-group"><label>Vía oral (ml)</label><input type="number" class="form-control medOralMl" placeholder="ml" min="0" step="0.5" /></div></div>
               <div class="form-group"><label>Alerta cuando queden</label><input type="number" class="form-control medUmbral" placeholder="5" min="1" value="5" required /></div>
               <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-plus"></i> Agregar</button>
@@ -436,7 +412,6 @@
           <button class="config-sub-tab-item" data-configtab="ia"><i class="fas fa-key"></i> IA</button>
         </div>
 
-        <!-- Sub-página: General -->
         <div class="config-sub-page active" data-configtab="general">
           <div class="card">
             <div class="card-header"><span class="card-title"><i class="fas fa-user"></i> Datos del paciente</span></div>
@@ -450,7 +425,6 @@
           </div>
         </div>
 
-        <!-- Sub-página: Telegram -->
         <div class="config-sub-page" data-configtab="telegram">
           <div class="card"><div class="card-header"><span class="card-title"><i class="fab fa-telegram"></i> Telegram</span></div>
             <form id="formTelegram">
@@ -462,7 +436,6 @@
           </div>
         </div>
 
-        <!-- Sub-página: Recordatorios -->
         <div class="config-sub-page" data-configtab="recordatorios">
           <div class="card">
             <div class="card-header">
@@ -499,7 +472,6 @@
           </div>
         </div>
 
-        <!-- Sub-página: Datos -->
         <div class="config-sub-page" data-configtab="datos">
           <div class="card"><div class="card-header"><span class="card-title"><i class="fas fa-database"></i> Datos</span></div>
             <button class="btn btn-secondary btn-block" id="btnExportarDatos"><i class="fas fa-download"></i> Exportar JSON</button>
@@ -509,7 +481,6 @@
           </div>
         </div>
 
-        <!-- Sub-página: IA -->
         <div class="config-sub-page" data-configtab="ia">
           <div class="card"><div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Clave IA</span></div>
             <div class="form-group"><label>API Key</label><input type="password" class="form-control" id="groqApiKey" placeholder="sk-..." /><small style="color:var(--gray);">Obtén tu clave en console.groq.com</small></div>
@@ -566,6 +537,11 @@
     let speechEnabled = true;
     let recordatorioIntervalId = null;
     let editingRecordatorioId = null;
+
+    // ============================================================
+    //  CONSTANTES DE TIEMPO - 5 MINUTOS
+    // ============================================================
+    const CINCO_MINUTOS = 5 * 60 * 1000; // 5 minutos en milisegundos
 
     // ============================================================
     //  PERSISTENCIA
@@ -892,7 +868,6 @@
       actualizarEstadoRecordatorio();
     }
 
-    // ===== HISTORIAL DE DIÁLISIS =====
     function renderDialisisHistorial() {
       const el = document.getElementById('historialDialisis');
       if (state.dialisis.length === 0) {
@@ -984,9 +959,6 @@
       }
     }
 
-    // ============================================================
-    //  RENDER: RECORDATORIOS DE PRUEBA
-    // ============================================================
     function renderRecordatoriosPrueba() {
       const el = document.getElementById('listaRecordatoriosPrueba');
       if (!el) return;
@@ -1038,9 +1010,6 @@
       }).join('');
     }
 
-    // ============================================================
-    //  RENDER: RECORDATORIOS DE MEDICAMENTOS
-    // ============================================================
     function renderRecordatoriosMedicamentos() {
       const el = document.getElementById('listaRecordatoriosMedicamentos');
       if (!el) return;
@@ -1053,10 +1022,8 @@
       }
       
       const ahora = Date.now();
-      const quinceMinutos = 15 * 60 * 1000;
       
       el.innerHTML = medicamentosConRecordatorio.map(m => {
-        // Calcular próxima toma
         let proximaToma = m.proximaToma || 0;
         if (!proximaToma || proximaToma < ahora) {
           const [horas, minutos] = m.horaToma.split(':').map(Number);
@@ -1081,7 +1048,7 @@
         } else if (diff <= 0) {
           estado = '⏰ Pendiente (reprogramando)';
           estadoColor = 'var(--secondary)';
-        } else if (diff <= quinceMinutos) {
+        } else if (diff <= CINCO_MINUTOS) {
           estado = '🔔 ¡PRONTO!';
           estadoColor = 'var(--danger)';
         } else {
@@ -1131,7 +1098,6 @@
 
     function verificarRecordatoriosMedicamentos() {
       const ahora = Date.now();
-      const quinceMinutos = 15 * 60 * 1000;
       
       for (const med of state.medicamentos) {
         if (!med.horaToma) continue;
@@ -1149,7 +1115,7 @@
         
         const diff = med.proximaToma - ahora;
         
-        if (diff <= quinceMinutos && diff > 0) {
+        if (diff <= CINCO_MINUTOS && diff > 0) {
           const nombrePaciente = pacienteNombre ? ` para ${pacienteNombre}` : '';
           const msg = 
             `💊 <b>¡Recordatorio de medicamento${nombrePaciente}!</b>\n\n` +
@@ -1355,9 +1321,6 @@
       showToast('Todos los recordatorios eliminados', 'info');
     });
 
-    // ============================================================
-    //  FORM: RECORDATORIO DE PRUEBA
-    // ============================================================
     document.getElementById('formRecordatorioPrueba').addEventListener('submit', function(e) {
       e.preventDefault();
       const fechaHora = document.getElementById('recordatorioFechaHora').value;
@@ -1380,17 +1343,16 @@
     });
 
     // ============================================================
-    //  VERIFICAR RECORDATORIOS DE PRUEBA (cada 30 segundos)
+    //  VERIFICADORES DE RECORDATORIOS (5 minutos)
     // ============================================================
     function verificarRecordatoriosPrueba() {
       const ahora = Date.now();
-      const quinceMinutos = 15 * 60 * 1000;
 
       for (const r of recordatoriosPrueba) {
         if (r.enviado) continue;
         const diff = r.timestamp - ahora;
         
-        if (diff <= quinceMinutos && diff > 0) {
+        if (diff <= CINCO_MINUTOS && diff > 0) {
           const nombrePaciente = pacienteNombre ? ` para ${pacienteNombre}` : '';
           const msg = `📢 <b>Recordatorio programado${nombrePaciente}</b>\n\n${r.mensaje || '⏰ ¡Recordatorio de diálisis!'}`;
           sendTelegramMessage(msg).then(enviado => {
@@ -1410,9 +1372,6 @@
       }
     }
 
-    // ============================================================
-    //  RECORDATORIO AUTOMÁTICO (Diálisis)
-    // ============================================================
     function iniciarVerificadorRecordatorio() {
       if (recordatorioIntervalId) {
         clearInterval(recordatorioIntervalId);
@@ -1422,15 +1381,13 @@
         verificarRecordatoriosPrueba();
         verificarRecordatoriosMedicamentos();
       }, 30000);
-      console.log('🔄 Verificador de recordatorios iniciado (cada 30s)');
+      console.log('🔄 Verificador de recordatorios iniciado (cada 30s) - 5 minutos antes');
     }
 
     async function verificarRecordatoriosDialisis() {
       await cargarDesdeFirebase();
       
       const ahora = Date.now();
-      const quinceMinutos = 15 * 60 * 1000;
-      let enviados = 0;
 
       for (const d of state.dialisis) {
         if (!d.proximaHora) continue;
@@ -1441,7 +1398,7 @@
         if (timestamp < ahora) continue;
 
         const diff = timestamp - ahora;
-        if (diff <= quinceMinutos && diff > 0) {
+        if (diff <= CINCO_MINUTOS && diff > 0) {
           const nombrePaciente = pacienteNombre ? ` para ${pacienteNombre}` : '';
           const msg = 
             `⏰ <b>¡Recordatorio de diálisis${nombrePaciente}!</b>\n\n` +
@@ -1458,13 +1415,8 @@
             await guardarDatos();
             renderDialisisHistorial();
             actualizarEstadoRecordatorio();
-            enviados++;
           }
         }
-      }
-
-      if (enviados > 0) {
-        showToast(`📨 ${enviados} recordatorio(s) de diálisis enviado(s)`, 'success');
       }
     }
 
@@ -1474,7 +1426,6 @@
     function actualizarEstadoRecordatorio() {
       const estadoEl = document.getElementById('estadoRecordatorio');
       const ahora = Date.now();
-      const quinceMinutos = 15 * 60 * 1000;
       
       let proxima = null;
       let diffMin = Infinity;
@@ -1507,18 +1458,18 @@
           tiempoTexto = `${mins} minutos`;
         }
 
-        const dentro15 = diff <= quinceMinutos;
+        const dentro5 = diff <= CINCO_MINUTOS;
         
         estadoEl.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
             <span>
               <strong>Próxima diálisis:</strong> 
               ${fecha.toLocaleDateString('es-ES')} ${fecha.toLocaleTimeString('es-ES')}
-              <span style="display:inline-block;background:${dentro15 ? 'var(--danger)' : 'var(--secondary)'};color:#fff;padding:0 10px;border-radius:20px;font-size:0.7rem;margin-left:8px;">
-                ${dentro15 ? '🔔 ¡PRONTO!' : `en ${tiempoTexto}`}
+              <span style="display:inline-block;background:${dentro5 ? 'var(--danger)' : 'var(--secondary)'};color:#fff;padding:0 10px;border-radius:20px;font-size:0.7rem;margin-left:8px;">
+                ${dentro5 ? '🔔 ¡PRONTO!' : `en ${tiempoTexto}`}
               </span>
             </span>
-            ${dentro15 ? '<span style="color:var(--danger);font-weight:600;">⏰ Se enviará recordatorio automáticamente</span>' : ''}
+            ${dentro5 ? '<span style="color:var(--danger);font-weight:600;">⏰ Se enviará recordatorio automáticamente</span>' : ''}
           </div>
         `;
       } else {
@@ -1560,12 +1511,11 @@
 
       let enviado = false;
       const ahora = Date.now();
-      const quinceMinutos = 15 * 60 * 1000;
 
       for (const r of recordatoriosPrueba) {
         if (r.enviado) continue;
         const diff = r.timestamp - ahora;
-        if (diff <= quinceMinutos && diff > 0) {
+        if (diff <= CINCO_MINUTOS && diff > 0) {
           const nombrePaciente = pacienteNombre ? ` para ${pacienteNombre}` : '';
           const msg = `📢 <b>Recordatorio de prueba${nombrePaciente}</b>\n\n${r.mensaje || '⏰ ¡Recordatorio de diálisis!'}`;
           const ok = await sendTelegramMessage(msg);
@@ -1594,7 +1544,7 @@
           const timestamp = fechaHora.getTime();
           const diff = timestamp - ahora;
           
-          if (diff <= quinceMinutos && diff > 0) {
+          if (diff <= CINCO_MINUTOS && diff > 0) {
             const nombrePaciente = pacienteNombre ? ` para ${pacienteNombre}` : '';
             const msg = 
               `⏰ <b>¡Recordatorio de diálisis${nombrePaciente}! (ENVÍO MANUAL)</b>\n\n` +
@@ -1619,7 +1569,7 @@
       }
 
       if (!enviado) {
-        showToast('No hay recordatorios pendientes (dentro de los próximos 15 minutos)', 'info');
+        showToast('No hay recordatorios pendientes (dentro de los próximos 5 minutos)', 'info');
       }
     });
 
@@ -1985,7 +1935,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Hora de la próxima diálisis <span class="label-hint">(se enviará recordatorio 15 min antes)</span></label>
+            <label>Hora de la próxima diálisis <span class="label-hint">(se enviará recordatorio 5 min antes)</span></label>
             <input type="time" class="form-control" id="editDialisisProximaHora" value="${d.proximaHora || ''}" required />
           </div>
           <div class="form-row">
@@ -1998,7 +1948,6 @@
           </div>
           <div class="form-group"><label>Glucosa (mg/dL)</label><input type="number" class="form-control" id="editDialisisGlucosa" value="${d.glucosa || ''}" min="0" step="1" /></div>
           <div class="form-group"><label>Notas</label><input type="text" class="form-control" id="editDialisisNotas" value="${d.notas || ''}" /></div>
-          <!-- BOTONES COMPACTOS -->
           <div class="modal-actions">
             <button type="button" class="btn btn-danger" id="btnDeleteDialisis" style="flex:0.5;"><i class="fas fa-trash"></i> Borrar</button>
             <button type="button" class="btn btn-secondary" onclick="closeModal()" style="flex:0.5;">Cancelar</button>
@@ -2008,7 +1957,6 @@
       `;
       openModal('Editar diálisis', html);
 
-      // Evento para eliminar desde el modal
       document.getElementById('btnDeleteDialisis').addEventListener('click', async function() {
         if (confirm('¿Eliminar este registro de diálisis?')) {
           await deleteDialisis(editingDialisisId);
@@ -2069,9 +2017,6 @@
       });
     });
 
-    // ============================================================
-    //  CONFIG SUB-TABS
-    // ============================================================
     document.querySelectorAll('.config-sub-tab-item').forEach(btn => {
       btn.addEventListener('click', function() {
         document.querySelectorAll('.config-sub-tab-item').forEach(b => b.classList.remove('active'));
@@ -2090,9 +2035,6 @@
       });
     });
 
-    // ============================================================
-    //  FORM: MEDICAMENTOS (con hora de toma)
-    // ============================================================
     document.querySelectorAll('.formMedicamentoEspecialidad').forEach(form => {
       form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -2294,7 +2236,7 @@
     //  EXPORT / IMPORT / BORRAR
     // ============================================================
     document.getElementById('btnExportarDatos').addEventListener('click', function() {
-      const data = { version: '2.6', exportado: new Date().toISOString(), ...state, recordatoriosPrueba, pacienteNombre };
+      const data = { version: '2.7', exportado: new Date().toISOString(), ...state, recordatoriosPrueba, pacienteNombre };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2435,7 +2377,7 @@
           .then(() => console.log('✅ SW registrado'))
           .catch(err => console.warn('⚠️ SW no registrado:', err));
       }
-      console.log('🚀 App de Diálisis Peritoneal v2.6 - Nombre paciente, recordatorios medicamentos y botones compactos');
+      console.log('🚀 App de Diálisis Peritoneal v2.7 - Recordatorios 5 minutos antes');
     }
 
     window.navigateTo = navigateTo;
