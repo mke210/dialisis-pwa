@@ -172,6 +172,7 @@
     .ia-status .dot.online { background: var(--success); }
     .ia-status .dot.offline { background: var(--danger); }
   </style>
+<base target="_blank">
 </head>
 <body>
   <div id="app">
@@ -516,7 +517,17 @@
     });
 
     function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
-    function formatDate(d) { const dt = new Date(d); return dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+
+    // ============================================================
+    //  FIX ZONA HORARIA: formatDate parsea la fecha como LOCAL
+    //  para evitar que "2026-07-27" se convierta en UTC y reste 6h
+    // ============================================================
+    function formatDate(d) {
+      const [year, month, day] = d.split('-').map(Number);
+      const dt = new Date(year, month - 1, day);
+      return dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
     function todayStr() { return new Date().toISOString().slice(0, 10); }
     function getTodayDialisis() { return state.dialisis.filter(d => d.fecha === todayStr()); }
     function getLowStockMeds() { return state.medicamentos.filter(m => m.stock <= m.umbral); }
@@ -572,7 +583,7 @@
           <div style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:0.8rem;color:var(--gray);margin-top:4px;">
             <span>💧 Drenado: <strong>${ult.ml} ml</strong></span>
             <span>⏳ Infusión: <strong>${ult.infusion_ml || 2000} ml</strong></span>
-            <span style="font-weight:600;color:${uf >= 0 ? 'var(--success)' : 'var(--danger)'};">📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml</span>
+            <span style="font-weight:600;color:${uf >= 0 ? 'var(--success)' : 'var(--danger)'}">📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml</span>
             ${ult.presion_sis ? `<span>❤️ ${ult.presion_sis}/${ult.presion_dia || '?'} mmHg</span>` : ''}
             ${ult.glucosa ? `<span>🩸 ${ult.glucosa} mg/dL</span>` : ''}
           </div>
@@ -606,9 +617,10 @@
       if (hoy.length === 0) {
         allAlerts.push({ type: 'info', msg: '📋 No has registrado diálisis hoy. ¡Regístrala!' });
       } else {
-        const now = new Date();
+        const now = Date.now();
         hoy.forEach(d => {
-          const dialisisTime = new Date(`${d.fecha}T${d.hora}`);
+          // FIX: usar crearTimestampLocal para evitar desfase UTC en alertas
+          const dialisisTime = crearTimestampLocal(d.fecha, d.hora);
           const diffHours = (now - dialisisTime) / (1000 * 60 * 60);
           let maxHours = 6;
           if (d.bolsa === '1.5%') maxHours = 6;
@@ -639,7 +651,7 @@
       }
 
       const sorted = state.dialisis.slice().sort((a, b) => b.timestamp - a.timestamp);
-      
+
       el.innerHTML = sorted.map(d => {
         const uf = (d.ml || 0) - (d.infusion_ml || 2000);
         const bagInfo = getBagInfo(d.bolsa);
@@ -650,7 +662,7 @@
               <div class="sub">
                 <span>💧 Drenado: <strong>${d.ml} ml</strong></span>
                 <span>⏳ Infusión: <strong>${d.infusion_ml || 2000} ml</strong></span>
-                <span style="font-weight:600;color:${uf >= 0 ? 'var(--success)' : 'var(--danger)'};">📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml</span>
+                <span style="font-weight:600;color:${uf >= 0 ? 'var(--success)' : 'var(--danger)'}">📊 UF: ${uf >= 0 ? '+' : ''}${uf} ml</span>
                 ${d.presion_sis ? `<span>❤️ ${d.presion_sis}/${d.presion_dia || '?'} mmHg</span>` : ''}
                 ${d.glucosa ? `<span>🩸 ${d.glucosa} mg/dL</span>` : ''}
                 <span class="badge-time">⏰ ${bagInfo.rango}</span>
@@ -750,7 +762,7 @@
       }
 
       const nuevaFechaHora = crearTimestampLocal(data.fecha, data.hora);
-      
+
       state.dialisis[index] = {
         ...state.dialisis[index],
         ...data,
@@ -761,11 +773,11 @@
       await cargarDesdeFirebase();
       renderDashboard();
       renderDialisisHistorial();
-      
+
       if (data.proximaHora) {
         programarRecordatorio(data.fecha, data.proximaHora);
       }
-      
+
       showToast('✅ Diálisis actualizada correctamente', 'success');
     }
 
@@ -869,11 +881,11 @@
       const [year, month, day] = fecha.split('-').map(Number);
       const [hour, minute] = hora.split(':').map(Number);
       const fechaBase = new Date(year, month - 1, day, hour, minute);
-      
+
       if (fechaBase.getTime() < Date.now()) {
         fechaBase.setDate(fechaBase.getDate() + 1);
       }
-      
+
       proximaDialisisTimestamp = fechaBase.getTime();
       recordatorioEnviado = false;
       localStorage.setItem('proximaDialisis', proximaDialisisTimestamp);
