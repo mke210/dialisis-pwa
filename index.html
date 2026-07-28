@@ -2139,19 +2139,55 @@
     window.editMedicamento = function(id) {
       const med = state.medicamentos.find(m => m.id === id);
       if (!med) return;
-      openModal('Agregar stock', `
+      openModal('Editar medicamento', `
         <form id="formEditMed">
-          <div class="form-group"><label>${med.nombre} - Stock actual: <strong>${med.stock}</strong></label><input type="number" class="form-control" id="editMedStock" placeholder="Nuevo stock" min="0" required /></div>
+          <div class="form-group"><label>Nombre</label><input type="text" class="form-control" id="editMedNombre" value="${med.nombre || ''}" required /></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Frecuencia</label>
+              <select class="form-control" id="editMedFrecuencia" required>
+                <option value="8h" ${med.frecuencia==='8h'?'selected':''}>Cada 8h</option>
+                <option value="12h" ${med.frecuencia==='12h'?'selected':''}>Cada 12h</option>
+                <option value="24h" ${med.frecuencia==='24h'?'selected':''}>Cada 24h</option>
+                <option value="6h" ${med.frecuencia==='6h'?'selected':''}>Cada 6h</option>
+                <option value="4h" ${med.frecuencia==='4h'?'selected':''}>Cada 4h</option>
+                <option value="48h" ${med.frecuencia==='48h'?'selected':''}>Cada 48h</option>
+                <option value="semanal" ${med.frecuencia==='semanal'?'selected':''}>Semanal</option>
+                <option value="otra" ${med.frecuencia==='otra'?'selected':''}>Otra</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Hora de toma</label><input type="time" class="form-control" id="editMedHora" value="${med.horaToma || '08:00'}" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Dosis (mg)</label><input type="text" class="form-control" id="editMedDosis" value="${med.dosis || ''}" placeholder="Ej: 50mg" /></div>
+            <div class="form-group"><label>Vía oral (ml)</label><input type="number" class="form-control" id="editMedOralMl" value="${med.oralMl !== undefined && med.oralMl !== null ? med.oralMl : ''}" min="0" step="0.5" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Pastillas/caja</label><input type="number" class="form-control" id="editMedPillsBox" value="${med.pillsBox || ''}" min="1" required /></div>
+            <div class="form-group"><label>Stock actual</label><input type="number" class="form-control" id="editMedStock" value="${med.stock !== undefined && med.stock !== null ? med.stock : ''}" min="0" required /></div>
+          </div>
           <div class="form-group"><label>Umbral de alerta</label><input type="number" class="form-control" id="editMedUmbral" value="${med.umbral}" min="1" required /></div>
-          <div class="form-group"><label>Hora de toma</label><input type="time" class="form-control" id="editMedHora" value="${med.horaToma || '08:00'}" /></div>
           <button type="submit" class="btn btn-primary btn-block">Actualizar</button>
         </form>
       `);
       document.getElementById('formEditMed').addEventListener('submit', async function(e) {
         e.preventDefault();
+        const nuevoNombre = document.getElementById('editMedNombre').value.trim();
+        const nuevaFrecuencia = document.getElementById('editMedFrecuencia').value;
+        const nuevaDosis = document.getElementById('editMedDosis').value.trim();
+        const nuevoOralMl = document.getElementById('editMedOralMl').value;
+        const nuevoPillsBox = parseInt(document.getElementById('editMedPillsBox').value);
         const newStock = parseInt(document.getElementById('editMedStock').value);
         const newUmbral = parseInt(document.getElementById('editMedUmbral').value);
         const nuevaHora = document.getElementById('editMedHora').value;
+        if (!nuevoNombre) {
+          showToast('El nombre es obligatorio', 'error');
+          return;
+        }
+        if (isNaN(nuevoPillsBox) || nuevoPillsBox < 1) {
+          showToast('Pastillas/caja válido', 'error');
+          return;
+        }
         if (isNaN(newStock) || newStock < 0) {
           showToast('Stock válido', 'error');
           return;
@@ -2160,6 +2196,11 @@
           showToast('Umbral válido', 'error');
           return;
         }
+        med.nombre = nuevoNombre;
+        med.frecuencia = nuevaFrecuencia;
+        med.dosis = nuevaDosis;
+        med.oralMl = nuevoOralMl === '' ? null : parseFloat(nuevoOralMl);
+        med.pillsBox = nuevoPillsBox;
         med.stock = newStock;
         med.umbral = newUmbral;
         if (nuevaHora) {
@@ -2172,7 +2213,7 @@
         renderDashboard();
         renderRecordatoriosMedicamentos();
         closeModal();
-        showToast(`Stock de ${med.nombre} actualizado a ${newStock}`, 'success');
+        showToast(`✅ ${med.nombre} actualizado`, 'success');
         if (med.stock <= med.umbral) {
           const msg = `⚠️ <b>¡Stock bajo de medicamento!</b>\n💊 ${med.nombre}\n📦 Stock: ${med.stock} / ${med.pillsBox}\n🔔 Umbral: ${med.umbral}`;
           sendTelegramMessage(msg);
